@@ -1,0 +1,82 @@
+// Net Worth Tracker — schema (SQLite dla dev; swap na postgres w fazie 3)
+// LKV liczony w TS (lib/lkv.ts) — bez zależności od generate_series/LATERAL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enumy ---
+// SQLite przechowuje enumy jako tekst; Prisma wymusza je w warstwie aplikacji.
+enum ValuationSource {
+  MANUAL
+  IMPORT
+  CSV_IMPORT
+}
+
+// --- Użytkownik ---
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  baseCurrency String      @default("PLN") // ISO 4217
+  createdAt    DateTime    @default(now())
+  assets       Asset[]
+  valuations   Valuation[]
+}
+
+// --- Kategoria (słownik: kolor, kolejność) ---
+model Category {
+  id           String   @id @default(cuid())
+  slug         String   @unique // cash, stocks, bonds, real_estate, crypto, other
+  name         String   // "Gotówka", "Akcje"...
+  colorHex     String   @default("#6b7280")
+  displayOrder Int      @default(0)
+  assets       Asset[]
+
+  @@map("categories")
+}
+
+// --- Aktywo (definicja, nie wartość) ---
+model Asset {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String      // "Konto mBank", "IKE XTB", "Edukacyjna 3.0"
+  categoryId String?
+  category  Category?   @relation(fields: [categoryId], references: [id])
+  currency  String      @default("PLN") // ISO 4217
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  valuations Valuation[]
+
+  @@index([userId])
+  @@map("assets")
+}
+
+// --- Wycena (szereg czasowy — SERDCE aplikacji) ---
+model Valuation {
+  id            String          @id @default(cuid())
+  assetId       String
+  asset         Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  valueOriginal Decimal         // kwota w walucie aktywa
+  currency      String          @default("PLN")
+  fxRateToPln   Decimal?        // kurs użyty (audyt); null/1 dla PLN
+  fxRateDate    DateTime?       // data kursu (może ≠ valuationDate)
+  valuePln      Decimal         // valueOriginal * fxRate (denormalizacja pod wykresy)
+  valuationDate DateTime
+  source        ValuationSource @default(MANUAL)
+  sourceRef     String?         // nazwa pliku / id importu
+  note          String?
+  createdAt     DateTime        @default(now())
+
+  @@unique([assetId, valuationDate, source, sourceRef])
+  @@index([assetId, valuationDate])
+  @@index([userId, valuationDate])
+  @@map("valuations")
+}
