@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
 
-export const AssetInput = z.object({
+const AssetInput = z.object({
   name: z.string().trim().min(1, "Nazwa wymagana").max(100),
   categoryId: z.string().optional().nullable(),
   currency: z

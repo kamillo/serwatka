@@ -20,7 +20,9 @@
     "@prisma/client": "^6.19.3",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
+    "iconv-lite": "^0.7.2",
     "next": "16.2.9",
+    "papaparse": "^5.5.4",
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -29,6 +31,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

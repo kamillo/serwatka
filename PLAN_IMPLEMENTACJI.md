@@ -307,35 +307,62 @@ ORDER BY d;
 - [x] Wybór zakresu dat (1M/6M/YTD/1R/MAX) + auto-gęstość próbkowania
 - [x] Testy jednostkowe LKV (`lib/lkv.test.ts`, 9/9 zielone)
 
-### Faza 2 — Silnik importu CSV (3–4 tyg.) ⭐ rdzeń
+### Faza 2 — Silnik importu CSV (3–4 tyg.) ⭐ rdzeń ✅ UKOŃCZONE
 
-- [ ] Tabele: `import_jobs`, `raw_transactions`
-- [ ] Upload plików (drag&drop, limit rozmiaru, typy)
-- [ ] Parsing: PapaParse + auto-detekcja separatora
-- [ ] Wykrywanie/normalizacja kodowania (`iconv-lite`: UTF-8/Win-1250/ISO-8859-2)
-- [ ] Mechanizm mapowania pól (dropdowny + transformacje)
-- [ ] Presety wbudowane: mBank, PKO, XTB, mBank BM, obligacjeskarbowe.pl
-- [ ] Walidacja: parsowanie dat (`dd.mm.yyyy`), kwot (`1 234,56`), znaków +/-
-- [ ] Fallback daty (hierarchia + `date_estimated` + podgląd do korekty)
-- [ ] Panel błędów vs ostrzeżeń w wizardzie
-- [ ] Przypisanie wierszy do aktywów
-- [ ] Detekcja duplikatów (przed zapisem) + polityka pomiń/nadpisz/oba
-- [ ] Zapisywanie własnych presetów (JSONB)
-- [ ] Konwersja importu → wyceny (saldo bieżące jako snapshot)
-- [ ] Cofanie importu (po `import_job_id`)
+> Parsowanie po stronie serwera (iconv-lite + PapaParse), wizard mapowania po stronie klienta.
+> Weryfikacja: build zielony, 22 testy (9 LKV + 13 transform), smoke test round-trip commit/undo, endpoint HTTP poprawnie dekoduje Win-1250 + polskie znaki.
 
-### Faza 3 — Wielowalutowość + inflacja (2–3 tyg.)
+- [x] Tabela `import_jobs` (+ migracja). `raw_transactions` pominięte (opcjonalne) — wiersze kanoniczne żyją w stanie wizarda po stronie klienta.
+- [x] Upload plików (input + limit 10 MB + typ `.csv/.txt`) — `POST /api/import/parse`
+- [x] Parsing: PapaParse + auto-detekcja separatora
+- [x] Wykrywanie/normalizacja kodowania (iconv-lite: heurystyka UTF-8 → fallback Win-1250 + BOM)
+- [x] Mechanizm mapowania pól (dropdowny per pole + live preview)
+- [x] Presety wbudowane: generic, mBank, PKO, XTB, mBank BM, obligacjeskarbowe.pl
+- [x] Walidacja: daty (`dd.mm.yyyy`, `yyyy-mm-dd`), kwot (`1 234,56`, nawesy, znak), z wykrywaniem przepełnienia daty
+- [x] Fallback daty (brak dnia → ostatni dzień miesiąca, `dateEstimated`; brak daty → błąd blokujący)
+- [x] Panel błędów (czerwony, blok) vs ostrzeżeń (żółty, flag) w wizardzie
+- [x] Przypisanie wierszy do aktywów (jedno aktywo docelowe na import)
+- [x] Detekcja duplikatów (przed zapisem, data+aktywo) + polityka **pomiń / nadpisz** (opcja „oba" odroczona)
+- [~] Zapisywanie własnych presetów — `mappingConfig` (JSONB) persystowane per import; UI „zapisz jako preset" do wielokrotnego użytku — odroczone do fazy 4
+- [x] Konwersja importu → wyceny: **saldo direct** (snapshot) lub **running balance** (skumulowana suma)
+- [x] Cofanie importu (po `import_job_id`) + historia importów
 
-- [ ] Tabele: `fx_rates`, `macro_inflation`
-- [ ] Integracja NBP API (tabela A) + cache w bazie
-- [ ] Logika wyboru kursu (LKV kursu dla weekendów/świąt)
-- [ ] Przechowywanie `value_original` + `value_pln` + `fx_rate_*` na wycenach
-- [ ] Agregacja wielowalutowa do PLN na wykresie
-- [ ] Bootstrap inflacji z pliku JSON (miesięczne CPI m/m)
-- [ ] Wyliczanie `cumulative_index` (iloczyn, trigger przy wstawce)
-- [ ] Ręczny formularz wpisu wskaźnika inflacji
-- [ ] Linia realna (oczyszczona z inflacji) na wykresie głównym
-- [ ] Przełącznik nominal / real / inflacja
+### Faza 2.5 — Model hybrydowy: transakcje (dodana na żądanie) ✅ UKOŃCZONE
+
+> Gotówka = wyceny (snapshot). Inwestycje (obligacje/akcje/ETF) = transakcje (historia zakupów) + wyceny (wartość teraz).
+> Cel: zestawienie wydajności — ROI nominalny teraz, **real vs inflacja w Fazie 3**.
+> Weryfikacja: build zielony, 28 testów, smoke transakcji (import XTB-like → 3 tx → ROI 7.89% → undo).
+
+- [x] Model `Transaction` (type BUY/SELL/DIVIDEND/INTEREST/FEE, quantity, price, amount) + enum + migracja
+- [x] Transform: pola `type`/`quantity`/`price` + `mapType` (KUPNO→BUY, SPRZEDAŻ→SELL, dywidenda/odsetki/opłata) + testy
+- [x] `commitImport` — tryb `target: "valuations" | "transactions"` (transakcje: append, bez dedup)
+- [x] `undoImport` usuwa też transakcje powiązane z importem
+- [x] Wizard: selektor trybu (wyceny/transakcje), warunkowe pola type/ilość/cena, adaptacyjny preview, commit z `target`
+- [x] Widok aktywa `/assets/[id]`: KPI wydajności (wkład, wartość teraz, zysk/strata, ROI), mini-wykres wycen, tabela transakcji + usuwanie, formularz dodawania transakcji
+- [x] Link z tabeli aktywów → `/assets/[id]`
+- [x] ROI nominalny (`lib/perf.ts`): wkład = ΣBUY + ΣFEE − ΣSELL; dochód = dywidendy + odsetki; zysk = wartość − wkład + dochód
+
+**Uproroszczenia (do Faz 3–5):** koszt prosty (Σ, bez FIFO/średniego kosztu — dokładne dla buy-and-hold); wielowalutowość transakcji (FX) w Fazie 3; **report real-vs-inflacja** w Fazie 3 (razem z danymi inflacji); ceny rynkowe na żywo w Fazie 5.
+
+### Faza 3 — Wielowalutowość + inflacja (2–3 tyg.) ✅ UKOŃCZONE
+
+> FX live (NBP tabela A, cache + walk-back), inflacja offline (JSON + cumulative).
+> Weryfikacja: build zielony, 37 testów, smoke FX live (USD 3.94 / EUR 4.37), 41 miesięcy inflacji, dashboard z linią realną, real ROI na `/assets/[id]`.
+
+- [x] Tabele: `fx_rates`, `macro_inflation` (+ migracja)
+- [x] Integracja NBP API (tabela A, mid) + cache w bazie (`lib/fx.ts`)
+- [x] Logika wyboru kursu: LKV kursu (≤7 dni) dla weekendów/świąt + walk-back po NBP
+- [x] `value_original` + `value_pln` + `fx_rate_*` na wycenach i transakcjach (convertToPln)
+- [x] Agregacja wielowalutowa do PLN (valuePln w LKV + wykresie)
+- [x] Bootstrap inflacji z JSON (`lib/inflation/cpi.json`, ~2023–2026) + `seed-inflation.ts`
+- [x] `cumulative_index` = ∏(1+cpi m/m) od base; recalc przy edycji (`lib/inflation.ts`)
+- [x] Ręczny formularz wpisu/edycji wskaźnika (`/inflation` + `setInflationRate`)
+- [x] Linia realna na wykresie głównym (deflacja cumulative) + panel `/inflation`
+- [x] Przełącznik nominal / real / inflacja na dashboardzie
+- [x] **Report real-vs-inflacja**: ROI realny na `/assets/[id]` (deflacja wartości aktualnej inflacją od pierwszego zakupu)
+- [x] Aplikacja FX w import (`prefetchFxRange` + `convertToPln` per wiersz, oba tryby)
+
+**Notki:** dane CPI przykładowe (orientacyjne GUS) — podmień przez `/inflation`; FX cache stale LKV ≤7 dni; real ROI uproszczony (bez deflacji dywidend, bez FIFO — Faza 4).
 
 ### Faza 4 — UX, analityka, jakość (2–3 tyg.)
 

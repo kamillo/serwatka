@@ -9,6 +9,7 @@ import {
   type SeriesPoint,
   type ValuationPoint,
 } from "./lkv";
+import type { InflationPoint } from "./inflation";
 
 export type RangePreset = "1M" | "6M" | "YTD" | "1Y" | "MAX";
 
@@ -116,4 +117,70 @@ export async function getAssetsSnapshot(): Promise<AssetSnapshot[]> {
 export async function getCategories() {
   await getCurrentUserId(); // upewnia się, że dev user istnieje
   return prisma.category.findMany({ orderBy: { displayOrder: "asc" } });
+}
+
+export type AssetDetail = {
+  id: string;
+  name: string;
+  categoryName: string;
+  colorHex: string;
+  currency: string;
+  isActive: boolean;
+  valuations: { date: string; value: number }[];
+  transactions: {
+    id: string;
+    type: "BUY" | "SELL" | "DIVIDEND" | "INTEREST" | "FEE";
+    date: string;
+    quantity: number | null;
+    price: number | null;
+    amount: number;
+    note: string | null;
+  }[];
+};
+
+/** Szczegóły aktywa: wyceny (mini-wykres) + transakcje (ROI). */
+export async function getAssetDetail(assetId: string): Promise<AssetDetail | null> {
+  const userId = await getCurrentUserId();
+  const asset = await prisma.asset.findFirst({
+    where: { id: assetId, userId },
+    include: {
+      category: true,
+      valuations: { orderBy: { valuationDate: "asc" } },
+      transactions: { orderBy: { date: "asc" } },
+    },
+  });
+  if (!asset) return null;
+  return {
+    id: asset.id,
+    name: asset.name,
+    categoryName: asset.category?.name ?? "Bez kategorii",
+    colorHex: asset.category?.colorHex ?? "#6b7280",
+    currency: asset.currency,
+    isActive: asset.isActive,
+    valuations: asset.valuations.map((v) => ({
+      date: v.valuationDate.toISOString().slice(0, 10),
+      value: Number(v.valuePln),
+    })),
+    transactions: asset.transactions.map((t) => ({
+      id: t.id,
+      type: t.type,
+      date: t.date.toISOString().slice(0, 10),
+      quantity: t.quantity == null ? null : Number(t.quantity),
+      price: t.price == null ? null : Number(t.price),
+      amount: Number(t.amount),
+      note: t.note,
+    })),
+  };
+}
+
+/** Szereg inflacji (cumulativeIndex) z bazy — do wykresu realnego i reportów. */
+export async function getInflationSeries(): Promise<InflationPoint[]> {
+  await getCurrentUserId();
+  const rows = await prisma.macroInflation.findMany({ orderBy: { month: "asc" } });
+  return rows.map((r) => ({
+    month: r.month.toISOString().slice(0, 7),
+    cpiMonthlyIndex: Number(r.cpiMonthlyIndex),
+    cumulativeIndex: Number(r.cumulativeIndex),
+    source: r.source,
+  }));
 }

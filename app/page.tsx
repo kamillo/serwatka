@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AddAssetForm } from "./components/AddAssetForm";
 import { AddEntryForm } from "./components/AddEntryForm";
 import { AssetTable } from "./components/AssetTable";
@@ -10,6 +11,7 @@ import {
   RANGE_PRESETS,
   getAssetsSnapshot,
   getCategories,
+  getInflationSeries,
   getNetWorthSeries,
   type RangePreset,
 } from "@/lib/data";
@@ -50,10 +52,11 @@ export default async function Home({
     ? (sp.range as RangePreset)
     : "MAX";
 
-  const [series, assets, categories] = await Promise.all([
+  const [series, assets, categories, inflation] = await Promise.all([
     getNetWorthSeries(preset),
     getAssetsSnapshot(),
     getCategories(),
+    getInflationSeries(),
   ]);
 
   const last = series[series.length - 1];
@@ -74,7 +77,21 @@ export default async function Home({
             Wartość netto, struktura aktywów i zmiana w czasie
           </p>
         </div>
-        <RangeSelector current={preset} />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/import"
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            ⬆ Import CSV
+          </Link>
+          <Link
+            href="/inflation"
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-neutral-700"
+          >
+            Inflacja
+          </Link>
+          <RangeSelector current={preset} />
+        </div>
       </header>
 
       <div className="mb-4">
@@ -86,7 +103,7 @@ export default async function Home({
       </div>
 
       <Card title="Wartość netto w czasie" className="mb-4">
-        <NetWorthChart series={series} />
+        <NetWorthChart series={series} inflation={inflation} />
       </Card>
 
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">

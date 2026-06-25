@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { deleteAsset, toggleAssetActive } from "@/lib/actions/assets";
 import type { AssetSnapshot } from "@/lib/data";
 import { formatDate, formatPercent, formatPLN } from "@/lib/format";
@@ -48,7 +49,11 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
                   a.isActive ? "" : "opacity-50"
                 }`}
               >
-                <td className="py-2 pr-3 font-medium">{a.name}</td>
+                <td className="py-2 pr-3 font-medium">
+                  <Link href={`/assets/${a.id}`} className="hover:underline">
+                    {a.name}
+                  </Link>
+                </td>
                 <td className="py-2 pr-3">
                   <span
                     className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs text-white"

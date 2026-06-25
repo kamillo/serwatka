@@ -4,9 +4,10 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
+import { convertToPln } from "@/lib/fx";
 import type { ActionResult } from "./assets";
 
-export const ValuationInput = z.object({
+const ValuationInput = z.object({
   assetId: z.string().min(1, "Wybierz aktywo"),
   value: z.coerce.number().nonnegative("Kwota nie może być ujemna"),
   currency: z
@@ -41,8 +42,7 @@ export async function addValuation(
   if (!asset) return { ok: false, error: "Aktywo nie istnieje" };
 
   const date = new Date(`${valuationDate}T00:00:00.000Z`);
-  const valuePln = value; // faza 1: PLN
-  const fxRateToPln = currency === "PLN" ? 1 : null;
+  const fx = await convertToPln(value, currency, valuationDate);
 
   const existing = await prisma.valuation.findFirst({
     where: { assetId, valuationDate: date, source: "MANUAL" },
@@ -51,9 +51,9 @@ export async function addValuation(
   const payload = {
     valueOriginal: value,
     currency,
-    fxRateToPln,
-    fxRateDate: fxRateToPln !== null ? date : null,
-    valuePln,
+    fxRateToPln: fx.fxRateToPln,
+    fxRateDate: fx.fxRateDate,
+    valuePln: fx.valuePln,
     note: note ?? null,
   };
 

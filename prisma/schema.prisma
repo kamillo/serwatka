@@ -18,6 +18,14 @@ enum ValuationSource {
   CSV_IMPORT
 }
 
+enum TransactionType {
+  BUY
+  SELL
+  DIVIDEND
+  INTEREST
+  FEE
+}
+
 // --- Użytkownik ---
 model User {
   id           String      @id @default(cuid())
@@ -26,6 +34,26 @@ model User {
   createdAt    DateTime    @default(now())
   assets       Asset[]
   valuations   Valuation[]
+  importJobs   ImportJob[]
+  transactions Transaction[]
+}
+
+// --- Zadanie importu (historia + konfiguracja mapowania) ---
+model ImportJob {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename      String
+  sourceType    String   @default("generic") // 'mbank' | 'pko' | 'xtb' | 'generic'
+  mappingConfig Json?    // zapisany preset (do ponownego użycia)
+  status        String   @default("committed") // 'committed' | 'failed'
+  rowsTotal     Int      @default(0)
+  rowsImported  Int      @default(0)
+  rowsSkipped   Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@map("import_jobs")
 }
 
 // --- Kategoria (słownik: kolor, kolejność) ---
@@ -51,7 +79,8 @@ model Asset {
   currency  String      @default("PLN") // ISO 4217
   isActive  Boolean     @default(true)
   createdAt DateTime    @default(now())
-  valuations Valuation[]
+  valuations   Valuation[]
+  transactions Transaction[]
 
   @@index([userId])
   @@map("assets")
@@ -79,4 +108,56 @@ model Valuation {
   @@index([assetId, valuationDate])
   @@index([userId, valuationDate])
   @@map("valuations")
+}
+
+// --- Transakcja (historia zakupów/sprzedaży — dla inwestycji) ---
+// Gotówka = tylko wyceny. Obligacje/akcje/ETF = transakcje (koszt) + wyceny (wartość teraz).
+model Transaction {
+  id            String           @id @default(cuid())
+  assetId       String
+  asset         Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          TransactionType  @default(BUY)
+  date          DateTime
+  quantity      Decimal?         // sztuki / nominal (dla akcji/ETF/obligacji)
+  price         Decimal?         // cena jednostkowa
+  amount        Decimal          // wartość transakcji (kwota)
+  currency      String           @default("PLN")
+  fxRateToPln   Decimal?
+  fxRateDate    DateTime?
+  valuePln      Decimal          // amount * fxRate (PLN dla Phase 2.5)
+  note          String?
+  source        ValuationSource  @default(MANUAL) // MANUAL | IMPORT | CSV_IMPORT
+  sourceRef     String?          // id importu
+  createdAt     DateTime         @default(now())
+
+  @@index([assetId, date])
+  @@index([userId, date])
+  @@map("transactions")
+}
+
+// --- Kurs walut (cache NBP, tabela A — mid) ---
+model FxRate {
+  currency  String   // ISO 4217: USD, EUR...
+  rateDate  DateTime // data tabeli NBP (dzień roboczy)
+  rateToPln Decimal
+  source    String   @default("NBP")
+  createdAt DateTime @default(now())
+
+  @@unique([currency, rateDate, source])
+  @@index([currency, rateDate])
+  @@map("fx_rates")
+}
+
+// --- Inflacja (CPI m/m, GUS) — globalna, nie per user ---
+model MacroInflation {
+  month            DateTime  // pierwszy dzień miesiąca
+  cpiMonthlyIndex  Decimal   // m/m: 0.025 = +2.5%
+  cumulativeIndex  Decimal   // skumulowany od base (iloczyn ∏(1+m/m))
+  source           String    @default("GUS")
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([month])
+  @@map("macro_inflation")
 }
