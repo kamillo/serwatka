@@ -9,10 +9,10 @@ type Props = {
 export function KpiCards({ total, deltaMonthPct, assetCount }: Props) {
   const deltaTone =
     deltaMonthPct == null
-      ? "text-gray-400"
+      ? "text-slate-400"
       : deltaMonthPct >= 0
-        ? "text-emerald-600"
-        : "text-red-600";
+        ? "text-emerald-400"
+        : "text-red-400";
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -40,12 +40,12 @@ function Card({
   valueClass?: string;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-lg shadow-black/20 backdrop-blur-md">
+      <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
         {label}
       </div>
-      <div className={`mt-1 text-2xl font-semibold ${valueClass}`}>{value}</div>
-      <div className="text-xs text-gray-400">{sub}</div>
+      <div className={`mt-1 text-2xl font-bold text-slate-50 ${valueClass}`}>{value}</div>
+      <div className="text-xs text-slate-500">{sub}</div>
     </div>
   );
 }

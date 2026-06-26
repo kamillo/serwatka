@@ -27,7 +27,7 @@ export function TransactionTable({ transactions }: { transactions: Tx[] }) {
 
   if (transactions.length === 0) {
     return (
-      <p className="py-4 text-center text-sm text-gray-400">
+      <p className="py-4 text-center text-sm text-slate-500">
         Brak transakcji. Dodaj pierwszą poniżej lub zaimportuj historię zakupów.
       </p>
     );
@@ -37,7 +37,7 @@ export function TransactionTable({ transactions }: { transactions: Tx[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500 dark:border-neutral-800">
+          <tr className="border-b border-white/5 text-left text-xs uppercase tracking-wide text-slate-500">
             <th className="py-2 pr-3 font-medium">Data</th>
             <th className="py-2 pr-3 font-medium">Typ</th>
             <th className="py-2 pr-3 text-right font-medium">Ilość</th>
@@ -49,17 +49,17 @@ export function TransactionTable({ transactions }: { transactions: Tx[] }) {
         </thead>
         <tbody>
           {transactions.map((t) => (
-            <tr key={t.id} className="border-b border-gray-100 dark:border-neutral-800/60">
-              <td className="py-2 pr-3 text-gray-600 dark:text-gray-400">{formatDate(t.date)}</td>
-              <td className="py-2 pr-3">{TYPE_LABEL[t.type]}</td>
-              <td className="py-2 pr-3 text-right tabular-nums text-gray-500">
+            <tr key={t.id} className="border-b border-white/5">
+              <td className="py-2 pr-3 text-slate-400">{formatDate(t.date)}</td>
+              <td className="py-2 pr-3 text-slate-300">{TYPE_LABEL[t.type]}</td>
+              <td className="py-2 pr-3 text-right tabular-nums text-slate-500">
                 {t.quantity ?? "—"}
               </td>
-              <td className="py-2 pr-3 text-right tabular-nums text-gray-500">
+              <td className="py-2 pr-3 text-right tabular-nums text-slate-500">
                 {t.price != null ? formatPLN(t.price) : "—"}
               </td>
-              <td className="py-2 pr-3 text-right tabular-nums">{formatPLN(t.amount)}</td>
-              <td className="py-2 pr-3 max-w-[200px] truncate text-gray-500">{t.note || "—"}</td>
+              <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{formatPLN(t.amount)}</td>
+              <td className="py-2 pr-3 max-w-[200px] truncate text-slate-500">{t.note || "—"}</td>
               <td className="py-2 text-right">
                 <button
                   disabled={pending}
@@ -68,7 +68,7 @@ export function TransactionTable({ transactions }: { transactions: Tx[] }) {
                       void deleteTransaction(t.id);
                     });
                   }}
-                  className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                  className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
                 >
                   Usuń
                 </button>

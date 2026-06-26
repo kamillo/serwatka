@@ -162,12 +162,12 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-lg shadow-black/20 backdrop-blur-md">
       {/* pasek kroków */}
       <Steps step={step} />
 
       {error && (
-        <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40">
+        <p className="mb-3 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-300">
           {error}
         </p>
       )}
@@ -176,11 +176,11 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <label className="block">
-              <span className="text-xs font-medium text-gray-500">Źródło (preset)</span>
+              <span className="text-xs font-medium text-slate-400">Źródło (preset)</span>
               <select
                 value={presetId}
                 onChange={(e) => onPresetChange(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
               >
                 {PRESETS.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -188,32 +188,32 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
                   </option>
                 ))}
               </select>
-              <span className="mt-1 block text-xs text-gray-400">{preset.hint}</span>
+              <span className="mt-1 block text-xs text-slate-500">{preset.hint}</span>
             </label>
             <label className="block">
-              <span className="text-xs font-medium text-gray-500">Pomiń wierszy (preamble)</span>
+              <span className="text-xs font-medium text-slate-400">Pomiń wierszy (preamble)</span>
               <input
                 type="number"
                 min="0"
                 value={skipRows}
                 onChange={(e) => setSkipRows(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
               />
             </label>
             <label className="block">
-              <span className="text-xs font-medium text-gray-500">Plik CSV</span>
+              <span className="text-xs font-medium text-slate-400">Plik CSV</span>
               <input
                 type="file"
                 accept=".csv,.txt"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-white"
+                className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-slate-950"
               />
             </label>
           </div>
           <button
             onClick={onParse}
             disabled={!file || parsing}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
           >
             {parsing ? "Analizuję…" : "Przeanalizuj plik"}
           </button>
@@ -222,11 +222,11 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
 
       {step === "map" && parsed && (
         <div className="mt-4 space-y-4">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-slate-500">
             Wykryto: separator <b>{parsed.delimiter}</b> · kodowanie <b>{parsed.encoding}</b> · {parsed.rows.length} wierszy
           </p>
 
-          <div className="flex flex-wrap gap-4 rounded-md bg-gray-50 p-3 text-sm dark:bg-neutral-800/50">
+          <div className="flex flex-wrap gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm">
             <label className="flex items-center gap-2">
               <input
                 type="radio"
@@ -248,14 +248,14 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {fields.map((f) => (
               <label key={f} className="block">
-                <span className="text-xs font-medium text-gray-500">
+                <span className="text-xs font-medium text-slate-400">
                   {FIELD_LABELS[f]}
-                  {requiredField(f) && <span className="text-red-500"> *</span>}
+                  {requiredField(f) && <span className="text-red-400"> *</span>}
                 </span>
                 <select
                   value={columnMap[f] ?? ""}
                   onChange={(e) => setField(f, e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
                 >
                   <option value="">— brak —</option>
                   {parsed.headers.map((h) => (
@@ -280,7 +280,7 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-200 text-left text-gray-500 dark:border-neutral-800">
+                <tr className="border-b border-white/5 text-left text-slate-500">
                   <th className="py-1 pr-2">Data</th>
                   {target === "transactions" ? (
                     <>
@@ -301,7 +301,7 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
               </thead>
               <tbody>
                 {previewRows.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-100 dark:border-neutral-800/60">
+                  <tr key={i} className="border-b border-white/5 text-slate-300">
                     <td className="py-1 pr-2">{r.date ?? "—"}</td>
                     {target === "transactions" ? (
                       <>
@@ -319,11 +319,11 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
                     <td className="py-1 pr-2 max-w-[200px] truncate">{r.description || "—"}</td>
                     <td className="py-1">
                       {r.errors.length > 0 ? (
-                        <span className="text-red-600">✕ {r.errors[0]}</span>
+                        <span className="text-red-400">✕ {r.errors[0]}</span>
                       ) : r.warnings.length > 0 ? (
-                        <span className="text-amber-600">⚠</span>
+                        <span className="text-amber-400">⚠</span>
                       ) : (
-                        <span className="text-emerald-600">✓</span>
+                        <span className="text-emerald-400">✓</span>
                       )}
                     </td>
                   </tr>
@@ -335,14 +335,14 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
           <div className="flex gap-2">
             <button
               onClick={() => setStep("upload")}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-neutral-700"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/5"
             >
               Wstecz
             </button>
             <button
               onClick={() => setStep("review")}
               disabled={!canProceedToReview}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
             >
               Dalej
             </button>
@@ -354,11 +354,11 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="text-xs font-medium text-gray-500">Aktywo docelowe</span>
+              <span className="text-xs font-medium text-slate-400">Aktywo docelowe</span>
               <select
                 value={assetId}
                 onChange={(e) => setAssetId(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
               >
                 {activeAssets.length === 0 ? (
                   <option value="">— brak aktywnych aktywów —</option>
@@ -373,7 +373,7 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
             </label>
             {target === "valuations" ? (
               <div>
-                <span className="text-xs font-medium text-gray-500">Duplikaty (data+aktywo już w bazie)</span>
+                <span className="text-xs font-medium text-slate-400">Duplikaty (data+aktywo już w bazie)</span>
                 <div className="mt-1 space-y-1">
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -394,14 +394,14 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-slate-500">
                 Tryb transakcji: brak deduplikacji — każdy wiersz dodawany osobno
                 (cofnięcie przez historię importów).
               </div>
             )}
           </div>
 
-          <div className="rounded-md bg-gray-50 p-3 text-sm dark:bg-neutral-800/50">
+          <div className="rounded-md bg-white/[0.03] p-3 text-sm text-slate-300">
             {target === "transactions" ? (
               <>
                 Zostanie zaimportowanych <b>{summary.valid}</b> transakcji (historia zakupów) do aktywa.
@@ -413,21 +413,21 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
               </>
             )}
             {summary.withWarnings > 0 && (
-              <span className="text-amber-600"> {summary.withWarnings} z ostrzeżeniem (data).</span>
+              <span className="text-amber-400"> {summary.withWarnings} z ostrzeżeniem (data).</span>
             )}
           </div>
 
           <div className="flex gap-2">
             <button
               onClick={() => setStep("map")}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-neutral-700"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/5"
             >
               Wstecz
             </button>
             <button
               onClick={onCommit}
               disabled={committing || !assetId}
-              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
             >
               {committing ? "Importuję…" : "Importuj"}
             </button>
@@ -437,7 +437,7 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
 
       {step === "done" && result && (
         <div className="mt-4 space-y-3">
-          <p className="text-emerald-600">✓ Import zakończony.</p>
+          <p className="text-emerald-400">✓ Import zakończony.</p>
           <div className="flex flex-wrap gap-4 text-sm">
             <Stat label="Zaimportowano" value={result.imported} tone="green" />
             <Stat label="Pominięto" value={result.skipped} />
@@ -447,7 +447,7 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
           <div className="flex gap-2">
             <Link
               href="/"
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400"
             >
               Zobacz na wykresie
             </Link>
@@ -460,7 +460,7 @@ export function ImportWizard({ assets }: { assets: AssetSnapshot[] }) {
                 setColumnMap({});
                 setTarget("valuations");
               }}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-neutral-700"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/5"
             >
               Importuj kolejny
             </button>
@@ -485,8 +485,8 @@ function Steps({ step }: { step: string }) {
           key={s.id}
           className={`rounded-full px-3 py-1 text-xs ${
             step === s.id
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-500 dark:bg-neutral-800"
+              ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950"
+              : "bg-white/5 text-slate-400"
           }`}
         >
           {s.label}
@@ -506,15 +506,15 @@ function Stat({
   tone?: "gray" | "green" | "red" | "amber";
 }) {
   const toneClass = {
-    gray: "text-gray-700 dark:text-gray-300",
-    green: "text-emerald-600",
-    red: "text-red-600",
-    amber: "text-amber-600",
+    gray: "text-slate-200",
+    green: "text-emerald-400",
+    red: "text-red-400",
+    amber: "text-amber-400",
   }[tone];
   return (
     <div>
       <div className={`text-lg font-semibold ${toneClass}`}>{value}</div>
-      <div className="text-xs text-gray-400">{label}</div>
+      <div className="text-xs text-slate-500">{label}</div>
     </div>
   );
 }

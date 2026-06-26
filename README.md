@@ -34,3 +34,22 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+Komendy
+
+┌──────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│       Komenda        │                                                    Co robi                                                     │
+├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run db:wipe      │ Usuwa wszystkie dane (wyceny, transakcje, aktywa, kategorie, user, FX, inflacja, importy) — zachowuje schemat  │
+├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run db:demo      │ Importuje dane testowe: 6 aktywów, 54 wyceny, 4 transakcje (akcje → demo FIFO/ROI). Czyści tabele przed seedem │
+├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run db:inflation │ Importuje inflację (41 miesięcy z cpi.json)                                                                    │
+├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run db:fresh     │ Wszystko w jednym: demo + inflacja (czysta demonstracja)                                                       │
+├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run db:studio    │ Prisma Studio — przeglądanie/edycja bazy w przeglądarce (localhost:5555)                                       │
+├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run db:reset     │ Pełny reset (drop DB + remigracja + seed) — cięższy                                                            │
+└──────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+

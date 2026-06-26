@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetDetail, getInflationSeries } from "@/lib/data";
 import { computeNominalPerf, realReturn } from "@/lib/perf";
+import { computeFifoPerf } from "@/lib/cost-basis";
 import { cumulativeForDate } from "@/lib/inflation";
 import { formatPLN, formatPercent, todayISO } from "@/lib/format";
 import { AddTransactionForm } from "@/app/components/AddTransactionForm";
@@ -34,14 +35,16 @@ export default async function AssetPage({
         )
       : null;
 
+  const fifo = computeFifoPerf(detail.transactions, currentValue ?? 0);
+
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-800">
+          <Link href="/" className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/5">
             ← Dashboard
           </Link>
-          <h1 className="mt-1 flex items-center gap-2 text-xl font-semibold">
+          <h1 className="mt-2 flex items-center gap-2 text-lg font-bold tracking-tight text-slate-100">
             {detail.name}
             <span
               className="rounded-full px-2 py-0.5 text-xs text-white"
@@ -50,7 +53,7 @@ export default async function AssetPage({
               {detail.categoryName}
             </span>
             {!detail.isActive && (
-              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-400">
                 ukryte
               </span>
             )}
@@ -59,12 +62,12 @@ export default async function AssetPage({
       </header>
 
       {/* KPI wydajności */}
-      <section className="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+      <section className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-lg shadow-black/20 backdrop-blur-md">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          <h2 className="text-sm font-semibold text-slate-300">
             Wydajność (nominalna)
           </h2>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-slate-500">
             real zdeflowany inflacją od pierwszego zakupu
           </span>
         </div>
@@ -90,15 +93,48 @@ export default async function AssetPage({
             tone={real == null ? undefined : real.realRoiPct >= 0 ? "pos" : "neg"}
           />
         </div>
-        <p className="mt-2 text-xs text-gray-400">
+        <p className="mt-2 text-xs text-slate-500">
           Wkład = Σ zakupów + opłat − Σ sprzedaży · {detail.transactions.length} transakcji
           {perf.realizedIncome > 0 && ` · ${formatPLN(perf.realizedIncome)} dochodu (dywidendy/odsetki)`}
         </p>
       </section>
 
+      {fifo && (
+        <section className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-lg shadow-black/20 backdrop-blur-md">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-300">
+              P&amp;L (FIFO)
+            </h2>
+            <span className="text-xs text-slate-500">{fifo.remainingQty} szt. w portfelu</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Metric label="Koszt bieżący (FIFO)" value={formatPLN(fifo.remainingBasis)} />
+            <Metric
+              label="Zrealizowany P&L"
+              value={formatPLN(fifo.realizedGain)}
+              tone={fifo.realizedGain >= 0 ? "pos" : "neg"}
+            />
+            <Metric
+              label="Niezrealizowany P&L"
+              value={formatPLN(fifo.unrealizedGain)}
+              tone={fifo.unrealizedGain >= 0 ? "pos" : "neg"}
+            />
+            <Metric
+              label="ROI (FIFO)"
+              value={fifo.roiPct == null ? "—" : formatPercent(fifo.roiPct)}
+              tone={fifo.roiPct == null ? undefined : fifo.roiPct >= 0 ? "pos" : "neg"}
+            />
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            FIFO (pierwsze weszło, pierwsze wyszło) · zysk całkowity {formatPLN(fifo.totalGain)}
+            {fifo.income > 0 && ` · ${formatPLN(fifo.income)} dochodu`}
+          </p>
+        </section>
+      )}
+
       {/* Wykres wycen */}
-      <section className="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-        <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+      <section className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-lg shadow-black/20 backdrop-blur-md">
+        <h2 className="mb-2 text-sm font-semibold text-slate-300">
           Wyceny w czasie
         </h2>
         <AssetValuationChart points={detail.valuations} />
@@ -106,16 +142,16 @@ export default async function AssetPage({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         {/* Transakcje */}
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 lg:col-span-3">
-          <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-lg shadow-black/20 backdrop-blur-md lg:col-span-3">
+          <h2 className="mb-2 text-sm font-semibold text-slate-300">
             Historia transakcji
           </h2>
           <TransactionTable transactions={detail.transactions} />
         </section>
 
         {/* Dodaj transakcję */}
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 lg:col-span-2">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-lg shadow-black/20 backdrop-blur-md lg:col-span-2">
+          <h2 className="mb-3 text-sm font-semibold text-slate-300">
             Dodaj transakcję
           </h2>
           <AddTransactionForm assetId={detail.id} />
@@ -135,10 +171,10 @@ function Metric({
   tone?: "pos" | "neg";
 }) {
   const toneClass =
-    tone === "pos" ? "text-emerald-600" : tone === "neg" ? "text-red-600" : "";
+    tone === "pos" ? "text-emerald-400" : tone === "neg" ? "text-red-400" : "text-slate-200";
   return (
     <div>
-      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`mt-0.5 text-lg font-semibold tabular-nums ${toneClass}`}>
         {value}
       </div>

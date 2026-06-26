@@ -11,7 +11,7 @@ export function AssetValuationChart({
 }) {
   if (points.length === 0) {
     return (
-      <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
+      <div className="flex h-[220px] items-center justify-center text-sm text-slate-500">
         Brak wycen dla tego aktywa.
       </div>
     );
@@ -24,16 +24,16 @@ export function AssetValuationChart({
       type: "category",
       boundaryGap: false,
       data: points.map((p) => p.date),
-      axisLine: { lineStyle: { color: "#d1d5db" } },
-      axisLabel: { color: "#9ca3af" },
+      axisLine: { lineStyle: { color: "#334155" } },
+      axisLabel: { color: "#94a3b8" },
     },
     yAxis: {
       type: "value",
       axisLabel: {
-        color: "#9ca3af",
+        color: "#94a3b8",
         formatter: (v) => formatPLN(Number(v), { compact: true }),
       },
-      splitLine: { lineStyle: { color: "#f3f4f6" } },
+      splitLine: { lineStyle: { color: "#1e293b" } },
     },
     series: [
       {
@@ -42,8 +42,8 @@ export function AssetValuationChart({
         showSymbol: false,
         data: points.map((p) => Math.round(p.value)),
         areaStyle: { opacity: 0.15 },
-        lineStyle: { width: 2.5, color: "#3b82f6" },
-        itemStyle: { color: "#3b82f6" },
+        lineStyle: { width: 2.5, color: "#10b981" },
+        itemStyle: { color: "#10b981" },
       },
     ],
   };

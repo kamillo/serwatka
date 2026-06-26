@@ -21,17 +21,17 @@ export function InflationForm() {
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-3">
       <label className="block">
-        <span className="text-xs font-medium text-gray-500">Miesiąc</span>
+        <span className="text-xs font-medium text-slate-400">Miesiąc</span>
         <input
           type="month"
           name="month"
           required
           defaultValue={currentMonth()}
-          className="mt-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="mt-1 rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
         />
       </label>
       <label className="block">
-        <span className="text-xs font-medium text-gray-500">CPI m/m (%)</span>
+        <span className="text-xs font-medium text-slate-400">CPI m/m (%)</span>
         <input
           type="number"
           name="ratePct"
@@ -39,18 +39,18 @@ export function InflationForm() {
           step="0.1"
           inputMode="decimal"
           placeholder="np. 0.2"
-          className="mt-1 w-28 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="mt-1 w-28 rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
         />
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
       >
         {pending ? "Zapisywanie…" : "Ustaw / nadpisz"}
       </button>
-      {state && !state.ok && <span className="text-sm text-red-600">{state.error}</span>}
-      {state?.ok && <span className="text-sm text-emerald-600">✓ Zapisano ({state.data.month}).</span>}
+      {state && !state.ok && <span className="text-sm text-red-400">{state.error}</span>}
+      {state?.ok && <span className="text-sm text-emerald-400">✓ Zapisano ({state.data.month}).</span>}
     </form>
   );
 }

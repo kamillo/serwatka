@@ -184,3 +184,30 @@ export async function getInflationSeries(): Promise<InflationPoint[]> {
     source: r.source,
   }));
 }
+
+export type CompareAsset = {
+  id: string;
+  name: string;
+  colorHex: string;
+  points: { date: string; value: number }[];
+};
+
+/** Aktywa z punktami wycen — do wykresu porównawczego (znormalizowanego). */
+export async function getCompareAssets(): Promise<CompareAsset[]> {
+  const userId = await getCurrentUserId();
+  const assets = await prisma.asset.findMany({
+    where: { userId, isActive: true },
+    include: { category: true, valuations: { orderBy: { valuationDate: "asc" } } },
+  });
+  return assets
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      colorHex: a.category?.colorHex ?? "#6b7280",
+      points: a.valuations.map((v) => ({
+        date: v.valuationDate.toISOString().slice(0, 10),
+        value: Number(v.valuePln),
+      })),
+    }))
+    .filter((a) => a.points.length > 0);
+}

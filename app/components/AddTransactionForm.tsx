@@ -33,11 +33,11 @@ export function AddTransactionForm({ assetId }: { assetId: string }) {
     <form action={formAction} className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Typ</span>
+          <span className="text-xs font-medium text-slate-400">Typ</span>
           <select
             name="type"
             defaultValue="BUY"
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           >
             {TYPES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -47,17 +47,17 @@ export function AddTransactionForm({ assetId }: { assetId: string }) {
           </select>
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Data</span>
+          <span className="text-xs font-medium text-slate-400">Data</span>
           <input
             type="date"
             name="date"
             required
             defaultValue={todayISO()}
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Kwota (PLN) *</span>
+          <span className="text-xs font-medium text-slate-400">Kwota (PLN) *</span>
           <input
             type="number"
             name="amount"
@@ -65,49 +65,49 @@ export function AddTransactionForm({ assetId }: { assetId: string }) {
             min="0"
             step="0.01"
             inputMode="decimal"
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Ilość</span>
+          <span className="text-xs font-medium text-slate-400">Ilość</span>
           <input
             type="number"
             name="quantity"
             min="0"
             step="0.0001"
             inputMode="decimal"
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Cena jedn.</span>
+          <span className="text-xs font-medium text-slate-400">Cena jedn.</span>
           <input
             type="number"
             name="price"
             min="0"
             step="0.0001"
             inputMode="decimal"
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Notatka</span>
+          <span className="text-xs font-medium text-slate-400">Notatka</span>
           <input
             type="text"
             name="note"
             maxLength={500}
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
         </label>
       </div>
 
-      {state && !state.ok && <p className="text-sm text-red-600">{state.error}</p>}
-      {state?.ok && <p className="text-sm text-emerald-600">✓ Transakcja dodana.</p>}
+      {state && !state.ok && <p className="text-sm text-red-400">{state.error}</p>}
+      {state?.ok && <p className="text-sm text-emerald-400">✓ Transakcja dodana.</p>}
 
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
       >
         {pending ? "Dodawanie…" : "Dodaj transakcję"}
       </button>

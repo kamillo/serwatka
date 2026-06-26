@@ -364,17 +364,20 @@ ORDER BY d;
 
 **Notki:** dane CPI przykładowe (orientacyjne GUS) — podmień przez `/inflation`; FX cache stale LKV ≤7 dni; real ROI uproszczony (bez deflacji dywidend, bez FIFO — Faza 4).
 
-### Faza 4 — UX, analityka, jakość (2–3 tyg.)
+### Faza 4 — UX, analityka, jakość (2–3 tyg.) ✅ (podzbiór)
 
-- [ ] Polishing dashboardu (responsywność, dark mode)
-- [ ] Szczegółowy widok aktywa (historia wycen, mini-wykres)
-- [ ] Filtry i porównania (aktywo vs aktywo, kategoria vs kategoria)
-- [ ] Eksport danych własnych (CSV/JSON) — przenośność
-- [ ] (opcjonalnie) Integracja API GUS dla auto-aktualizacji inflacji
-- [ ] (opcjonalnie) Mikroserwis Python dla trudnych ETL, jeśli potrzeba
-- [ ] Audyt bezpieczeństwa (dane finansowe: szyfrowanie, backup, RLS Postgres)
-- [ ] Testy E2E (Playwright) dla flow importu
-- [ ] Monitoring błędów (Sentry) + logowanie
+> Zbudowano wysokowartościowy podzbiór; reszta to prod-concerny lub opcje. Weryfikacja: tsc czysty (mój kod), 41 testów, strony 200, /api/export/json → 18KB.
+
+- [x] **Sleek dark redesign** (marka z `res/`): slate-950 + glow emerald/cyan, glass cards (`bg-white/[0.04] backdrop-blur`), przyciski gradient emerald→cyan, logo-kropla w globalnym sticky Nav, **dark-only** (usunięto niedziałający toggle). Wszystkie strony/komponenty zrestylowane spójnie.
+- [x] Szczegółowy widok aktywa (historia wycen, mini-wykres) — zrealizowane w Fazie 2.5
+- [x] **Porównanie aktywów** (`/compare`) — wykres znormalizowany start=100, multi-select
+- [x] **Eksport danych** (`/export` + `/api/export/{json,valuations,transactions}`) — CSV z BOM (Excel PL) + pełny JSON backup
+- [x] **FIFO cost basis** (`lib/cost-basis.ts`) — realized/unrealized P&L + ROI na `/assets/[id]` (dopełnia prosty ROI)
+- [x] **Eurostat HICP auto-sync** (`/inflation` → „⟳ Sync z Eurostat"): dataset `prc_hicp_midx`, PL, base 2015=100, BEZ klucza, **prawdziwy miesięczny m/m** z kolejnych indeksów (nie roczny-distributed). Smoke: 132 wpisy 2015–2025, 2022-03 m/m 2.91% (realny skok), skumulowana 1.564.
+- [ ] (opcjonalnie) Mikroserwis Python — odroczone (brak potrzeby)
+- [ ] Audyt bezpieczeństwa — odroczone (prod: Postgres/RLS/szyfrowanie; SQLite dev)
+- [ ] Testy E2E (Playwright) — odroczone (ciężki setup browserów)
+- [ ] Monitoring (Sentry) — odroczone (prod)
 
 ### Faza 5 (opcjonalnie) — Automatyzacja i rozszerzenia (ciągłe)
 

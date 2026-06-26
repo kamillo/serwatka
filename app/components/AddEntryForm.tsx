@@ -26,12 +26,12 @@ export function AddEntryForm({ assets }: { assets: AssetSnapshot[] }) {
     <form action={formAction} className="space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Aktywo</span>
+          <span className="text-xs font-medium text-slate-400">Aktywo</span>
           <select
             name="assetId"
             required
             defaultValue={activeAssets[0]?.id ?? ""}
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           >
             {activeAssets.length === 0 ? (
               <option value="">— najpierw dodaj aktywo —</option>
@@ -46,17 +46,17 @@ export function AddEntryForm({ assets }: { assets: AssetSnapshot[] }) {
         </label>
         <input type="hidden" name="currency" value="PLN" />
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Data</span>
+          <span className="text-xs font-medium text-slate-400">Data</span>
           <input
             type="date"
             name="valuationDate"
             required
             defaultValue={todayISO()}
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-gray-500">Wartość (PLN)</span>
+          <span className="text-xs font-medium text-slate-400">Wartość (PLN)</span>
           <input
             type="number"
             name="value"
@@ -65,31 +65,31 @@ export function AddEntryForm({ assets }: { assets: AssetSnapshot[] }) {
             step="0.01"
             inputMode="decimal"
             placeholder="0,00"
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
         </label>
         <label className="block sm:col-span-2">
-          <span className="text-xs font-medium text-gray-500">Notatka (opcjonalnie)</span>
+          <span className="text-xs font-medium text-slate-400">Notatka (opcjonalnie)</span>
           <input
             type="text"
             name="note"
             maxLength={500}
-            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
         </label>
       </div>
 
       {state && !state.ok && (
-        <p className="text-sm text-red-600">{state.error}</p>
+        <p className="text-sm text-red-400">{state.error}</p>
       )}
       {state?.ok && (
-        <p className="text-sm text-emerald-600">✓ Wycena zapisana.</p>
+        <p className="text-sm text-emerald-400">✓ Wycena zapisana.</p>
       )}
 
       <button
         type="submit"
         disabled={pending || activeAssets.length === 0}
-        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
       >
         {pending ? "Zapisywanie…" : "Dodaj wycenę"}
       </button>

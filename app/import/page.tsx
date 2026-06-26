@@ -16,14 +16,14 @@ export default async function ImportPage() {
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">
       <header className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Import CSV</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-lg font-bold tracking-tight text-slate-100">Import CSV</h1>
+          <p className="text-sm text-slate-500">
             Wyciągi bankowe, maklerzy, obligacje → wyceny
           </p>
         </div>
         <Link
           href="/"
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-neutral-700"
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/5"
         >
           ← Dashboard
         </Link>
@@ -31,8 +31,8 @@ export default async function ImportPage() {
 
       <ImportWizard assets={assets} />
 
-      <section className="mt-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-        <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+      <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-lg shadow-black/20 backdrop-blur-md">
+        <h2 className="mb-2 text-sm font-semibold text-slate-300">
           Historia importów
         </h2>
         <ImportHistory jobs={jobs} />

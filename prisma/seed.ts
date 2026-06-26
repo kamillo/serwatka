@@ -35,7 +35,7 @@ type SeedAsset = {
 };
 
 const assets: SeedAsset[] = [
-  { name: "Konto mBank", cat: "cash", base: 25000, growth: 0.02 }, // regularne oszczędności
+  { name: "Konto mBank", cat: "cash", base: 25000, growth: 0.02 },
   { name: "Poduszka finansowa ING", cat: "cash", base: 40000, growth: 0.004 },
   { name: "IKE XTB (akcje)", cat: "stocks", base: 82000, growth: 0.025 },
   { name: "Obligacje skarbowe (EDU/TOS)", cat: "bonds", base: 50000, growth: 0.008 },
@@ -43,9 +43,21 @@ const assets: SeedAsset[] = [
   { name: "Bitcoin (portfel)", cat: "crypto", base: 32000, growth: 0.04, volatile: true },
 ];
 
+// Demo transakcji dla akcji (pokazuje FIFO + real ROI na /assets/[id])
+const STOCKS_TX = [
+  { date: "2025-10-15", type: "BUY" as const, qty: 100, price: 200, amount: 20000, note: "Zakup ETF S&P500" },
+  { date: "2025-12-10", type: "BUY" as const, qty: 50, price: 220, amount: 11000, note: "Dokupienie" },
+  { date: "2026-02-20", type: "SELL" as const, qty: 40, price: 240, amount: 9600, note: "Realizacja części" },
+  { date: "2026-04-05", type: "DIVIDEND" as const, qty: null, price: null, amount: 320, note: "Dywidenda" },
+];
+
 async function main() {
-  // czyszczenie (kolejność: zależne najpierw)
+  // pełny wipe (kolejność: zależne najpierw) — czysta demonstracja
   await prisma.valuation.deleteMany();
+  await prisma.transaction.deleteMany();
+  await prisma.importJob.deleteMany();
+  await prisma.fxRate.deleteMany();
+  await prisma.macroInflation.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.category.deleteMany();
   await prisma.user.deleteMany();
@@ -61,6 +73,7 @@ async function main() {
   }
 
   let totalValuations = 0;
+  let stocksAssetId: string | null = null;
   for (const a of assets) {
     const asset = await prisma.asset.create({
       data: {
@@ -70,6 +83,7 @@ async function main() {
         userId: user.id,
       },
     });
+    if (a.cat === "stocks") stocksAssetId = asset.id;
 
     let value = a.base;
     const rows = MONTHS.map((iso, i) => {
@@ -95,8 +109,31 @@ async function main() {
     totalValuations += rows.length;
   }
 
+  // transakcje demonstracyjne dla akcji
+  let totalTx = 0;
+  if (stocksAssetId) {
+    await prisma.transaction.createMany({
+      data: STOCKS_TX.map((t) => ({
+        assetId: stocksAssetId!,
+        userId: user.id,
+        type: t.type,
+        date: day(t.date),
+        quantity: t.qty,
+        price: t.price,
+        amount: t.amount,
+        currency: "PLN",
+        fxRateToPln: 1,
+        fxRateDate: day(t.date),
+        valuePln: t.amount,
+        note: t.note,
+        source: "MANUAL" as const,
+      })),
+    });
+    totalTx = STOCKS_TX.length;
+  }
+
   console.log(
-    `✓ Seeded: 1 user, ${categories.length} kategorii, ${assets.length} aktywów, ${totalValuations} wycen`
+    `✓ Demo: 1 user, ${categories.length} kategorii, ${assets.length} aktywów, ${totalValuations} wycen, ${totalTx} transakcji`
   );
 }
 

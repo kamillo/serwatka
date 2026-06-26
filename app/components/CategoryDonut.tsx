@@ -18,7 +18,7 @@ export function CategoryDonut({ assets }: { assets: AssetSnapshot[] }) {
 
   if (data.length === 0) {
     return (
-      <div className="flex h-[280px] items-center justify-center text-gray-400">
+      <div className="flex h-[280px] items-center justify-center text-slate-500">
         Brak aktywów.
       </div>
     );
@@ -29,14 +29,14 @@ export function CategoryDonut({ assets }: { assets: AssetSnapshot[] }) {
       trigger: "item",
       valueFormatter: (v) => formatPLN(Number(v)),
     },
-    legend: { bottom: 0, type: "scroll", textStyle: { color: "#9ca3af" } },
+    legend: { bottom: 0, type: "scroll", textStyle: { color: "#94a3b8" } },
     series: [
       {
         type: "pie",
         radius: ["45%", "70%"],
-        center: ["50%", "45%"],
+        center: ["50%", "40%"],
         avoidLabelOverlap: true,
-        itemStyle: { borderColor: "#fff", borderWidth: 2 },
+        itemStyle: { borderColor: "#0f172a", borderWidth: 2 },
         label: { formatter: "{d}%", color: "#6b7280" },
         data: data.map((d) => ({
           name: d.name,
@@ -47,5 +47,5 @@ export function CategoryDonut({ assets }: { assets: AssetSnapshot[] }) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: 280 }} notMerge />;
+  return <ReactECharts option={option} style={{ height: 300 }} notMerge />;
 }

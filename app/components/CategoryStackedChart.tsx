@@ -19,33 +19,33 @@ export function CategoryStackedChart({
 
   if (series.length === 0 || cats.length === 0) {
     return (
-      <div className="flex h-[280px] items-center justify-center text-gray-400">
+      <div className="flex h-[280px] items-center justify-center text-slate-500">
         Brak danych.
       </div>
     );
   }
 
   const option: EChartsOption = {
-    grid: { left: 60, right: 16, top: 16, bottom: 32 },
+    grid: { left: 60, right: 16, top: 16, bottom: 54 },
     tooltip: {
       trigger: "axis",
       valueFormatter: (v) => formatPLN(Number(v)),
     },
-    legend: { bottom: 0, type: "scroll", textStyle: { color: "#9ca3af" } },
+    legend: { bottom: 0, type: "scroll", textStyle: { color: "#94a3b8" } },
     xAxis: {
       type: "category",
       boundaryGap: false,
       data: series.map((p) => p.date),
-      axisLine: { lineStyle: { color: "#d1d5db" } },
-      axisLabel: { color: "#9ca3af" },
+      axisLine: { lineStyle: { color: "#334155" } },
+      axisLabel: { color: "#94a3b8" },
     },
     yAxis: {
       type: "value",
       axisLabel: {
-        color: "#9ca3af",
+        color: "#94a3b8",
         formatter: (v) => formatPLN(Number(v), { compact: true }),
       },
-      splitLine: { lineStyle: { color: "#f3f4f6" } },
+      splitLine: { lineStyle: { color: "#1e293b" } },
     },
     series: cats.map((c) => ({
       name: c.name,

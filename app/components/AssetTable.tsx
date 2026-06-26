@@ -11,7 +11,7 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
 
   if (assets.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-gray-400">
+      <p className="py-6 text-center text-sm text-slate-500">
         Brak aktywów. Dodaj pierwsze poniżej.
       </p>
     );
@@ -21,7 +21,7 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500 dark:border-neutral-800">
+          <tr className="border-b border-white/5 text-left text-xs uppercase tracking-wide text-slate-500">
             <th className="py-2 pr-3 font-medium">Aktywo</th>
             <th className="py-2 pr-3 font-medium">Kategoria</th>
             <th className="py-2 pr-3 text-right font-medium">Wartość</th>
@@ -38,19 +38,19 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
                 : null;
             const deltaClass =
               delta == null
-                ? "text-gray-400"
+                ? "text-slate-400"
                 : delta >= 0
-                  ? "text-emerald-600"
-                  : "text-red-600";
+                  ? "text-emerald-400"
+                  : "text-red-400";
             return (
               <tr
                 key={a.id}
-                className={`border-b border-gray-100 dark:border-neutral-800/60 ${
+                className={`border-b border-white/5 ${
                   a.isActive ? "" : "opacity-50"
                 }`}
               >
-                <td className="py-2 pr-3 font-medium">
-                  <Link href={`/assets/${a.id}`} className="hover:underline">
+                <td className="py-2 pr-3 font-medium text-slate-300">
+                  <Link href={`/assets/${a.id}`} className="text-slate-100 hover:underline">
                     {a.name}
                   </Link>
                 </td>
@@ -62,13 +62,13 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
                     {a.categoryName}
                   </span>
                 </td>
-                <td className="py-2 pr-3 text-right tabular-nums">
+                <td className="py-2 pr-3 text-right tabular-nums text-slate-300">
                   {formatPLN(a.latestValue)}
                 </td>
                 <td className={`py-2 pr-3 text-right tabular-nums ${deltaClass}`}>
                   {delta == null ? "—" : formatPercent(delta)}
                 </td>
-                <td className="py-2 pr-3 text-gray-500">
+                <td className="py-2 pr-3 text-slate-500">
                   {a.latestDate ? formatDate(a.latestDate) : "—"}
                 </td>
                 <td className="py-2 text-right">
@@ -79,7 +79,7 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
                         void toggleAssetActive(a.id, !a.isActive);
                       })
                     }
-                    className="mr-2 text-xs text-gray-500 hover:text-gray-800 disabled:opacity-50"
+                    className="mr-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/5 disabled:opacity-50"
                   >
                     {a.isActive ? "Ukryj" : "Pokaż"}
                   </button>
@@ -96,7 +96,7 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
                         });
                       }
                     }}
-                    className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                    className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
                   >
                     Usuń
                   </button>

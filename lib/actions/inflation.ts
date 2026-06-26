@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
+import { fetchEurostatHicp, indicesToMonthlyRates } from "@/lib/eurostat";
 import type { ActionResult } from "./assets";
 
 const MonthInput = z.object({
@@ -59,4 +60,39 @@ export async function deleteInflationMonth(
   revalidatePath("/inflation");
   revalidatePath("/");
   return { ok: true, data: { month } };
+}
+
+/**
+ * Synchronizacja inflacji z Eurostat (HICP, Polska, base 2015=100).
+ * Prawdziwy miesięczny indeks → m/m z kolejnych miesięcy (nie roczny-distributed).
+ * ZASTĘPUJE dane od startYear. Bez klucza API.
+ */
+export async function syncInflationEurostat(
+  startYear = 2015
+): Promise<ActionResult<{ months: number }>> {
+  await getCurrentUserId();
+  const pts = await fetchEurostatHicp();
+  const rates = indicesToMonthlyRates(pts);
+
+  let count = 0;
+  for (const r of rates) {
+    if (Number(r.month.slice(0, 4)) < startYear) continue;
+    const monthDate = new Date(`${r.month}-01T00:00:00.000Z`);
+    await prisma.macroInflation.upsert({
+      where: { month: monthDate },
+      create: {
+        month: monthDate,
+        cpiMonthlyIndex: r.rate,
+        cumulativeIndex: 1,
+        source: "Eurostat",
+      },
+      update: { cpiMonthlyIndex: r.rate, source: "Eurostat" },
+    });
+    count++;
+  }
+  await recalcCumulative();
+
+  revalidatePath("/inflation");
+  revalidatePath("/");
+  return { ok: true, data: { months: count } };
 }

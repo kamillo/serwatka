@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AddAssetForm } from "./components/AddAssetForm";
 import { AddEntryForm } from "./components/AddEntryForm";
 import { AssetTable } from "./components/AssetTable";
@@ -19,6 +18,9 @@ import { valueAtOffset } from "@/lib/lkv";
 
 export const dynamic = "force-dynamic";
 
+const CARD =
+  "rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-lg shadow-black/20 backdrop-blur-md";
+
 function Card({
   title,
   children,
@@ -29,13 +31,9 @@ function Card({
   className?: string;
 }) {
   return (
-    <section
-      className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 ${className}`}
-    >
+    <section className={`${CARD} ${className}`}>
       {title && (
-        <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-          {title}
-        </h2>
+        <h2 className="mb-3 text-sm font-semibold text-slate-300">{title}</h2>
       )}
       {children}
     </section>
@@ -72,34 +70,18 @@ export default async function Home({
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">serwatka</h1>
-          <p className="text-sm text-gray-500">
-            Wartość netto, struktura aktywów i zmiana w czasie
+          <h1 className="text-lg font-bold tracking-tight text-slate-100">
+            Wartość netto
+          </h1>
+          <p className="text-sm text-slate-500">
+            Struktura aktywów i realna zmiana w czasie
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/import"
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            ⬆ Import CSV
-          </Link>
-          <Link
-            href="/inflation"
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-neutral-700"
-          >
-            Inflacja
-          </Link>
-          <RangeSelector current={preset} />
-        </div>
+        <RangeSelector current={preset} />
       </header>
 
       <div className="mb-4">
-        <KpiCards
-          total={total}
-          deltaMonthPct={deltaMonthPct}
-          assetCount={activeCount}
-        />
+        <KpiCards total={total} deltaMonthPct={deltaMonthPct} assetCount={activeCount} />
       </div>
 
       <Card title="Wartość netto w czasie" className="mb-4">
@@ -124,8 +106,8 @@ export default async function Home({
         </Card>
       </div>
 
-      <details className="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-        <summary className="cursor-pointer text-sm font-semibold text-gray-700 dark:text-gray-300">
+      <details className={`mt-4 ${CARD}`}>
+        <summary className="cursor-pointer text-sm font-semibold text-slate-300">
           + Dodaj nowe aktywo
         </summary>
         <div className="mt-3">

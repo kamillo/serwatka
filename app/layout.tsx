@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Nav } from "./components/Nav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "serwatka",
-  description: "Śledzenie wartości netto, struktury aktywów i realnej zmiany vs inflacja",
+  title: "serwatka — net worth tracker",
+  description: "Wartość netto, struktura aktywów i realna zmiana vs inflacja",
 };
 
 export default function RootLayout({
@@ -25,9 +26,10 @@ export default function RootLayout({
   return (
     <html
       lang="pl"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900 dark:bg-neutral-950 dark:text-gray-100">
+      <body className="min-h-full flex flex-col">
+        <Nav />
         {children}
       </body>
     </html>
