@@ -48,10 +48,19 @@ if ! command -v pct &>/dev/null; then
 fi
 
 # ─── Wykrywanie storage (wg konwencji community-scripts) ─────────────
-# Szablony (vztmpl) i rootfs (rootdir) mogą być na różnych storage'ach.
-# Domyślnie: local-lvm dla rootfs, local dla szablonów — auto-detekcja przez pvesm.
-TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(pvesm status -content vztmpl 2>/dev/null | awk 'NR>1{print $1; exit}')}"
-CONTAINER_STORAGE="${CONTAINER_STORAGE:-$(pvesm status -content rootdir 2>/dev/null | awk 'NR>1{print $1; exit}')}"
+# Preferuj: local-lvm (rootfs) + local (szablony) — domyślne w Proxmox.
+# Fallback: pierwszy storage obsługujący dany content type.
+detect_storage() {
+  local content="$1" preferred="$2"
+  if pvesm status -content "$content" 2>/dev/null | awk 'NR>1{print $1}' | grep -qx "$preferred"; then
+    echo "$preferred"
+    return
+  fi
+  pvesm status -content "$content" 2>/dev/null | awk 'NR>1{print $1; exit}'
+}
+
+CONTAINER_STORAGE="${CONTAINER_STORAGE:-$(detect_storage rootdir local-lvm)}"
+TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(detect_storage vztmpl local)}"
 
 if [[ -z "${CONTAINER_STORAGE}" ]]; then
   msg_error "Brak storage obsługującego kontenery (rootdir). Ustaw CONTAINER_STORAGE ręcznie."
@@ -79,14 +88,20 @@ if [[ "$MODE" == "install" ]]; then
   # ── Szablon ───────────────────────────────────────────────────────
   header "Pobieranie szablonu"
   pveam update >/dev/null 2>&1 || true
-  # znajdź dokładną nazwę szablonu jeśli podano prefiks
-  TEMPLATE_FULL="${TEMPLATE}"
-  if ! pveam list "$TEMPLATE_STORAGE" 2>/dev/null | grep -q "$TEMPLATE"; then
-    pveam download "$TEMPLATE_STORAGE" "$TEMPLATE" >/dev/null 2>&1 || true
+
+  # Znajdź dokładną nazwę z available, jeśli podano prefiks
+  TEMPLATE_FULL=$(pveam available 2>/dev/null | awk -v t="$TEMPLATE" '$0 ~ t {print $NF; exit}' || true)
+  [[ -z "$TEMPLATE_FULL" ]] && TEMPLATE_FULL="$TEMPLATE"
+
+  # Pobierz jeśli nie ma na storage
+  if ! pveam list "$TEMPLATE_STORAGE" 2>/dev/null | grep -q "$TEMPLATE_FULL"; then
+    msg_info "Pobieranie szablonu: $TEMPLATE_FULL"
+    pveam download "$TEMPLATE_STORAGE" "$TEMPLATE_FULL" || true
   fi
-  TEMPLATE_FULL=$(pveam list "$TEMPLATE_STORAGE" 2>/dev/null | grep -o "$TEMPLATE[^ ]*" | head -1)
-  if [[ -z "${TEMPLATE_FULL}" ]]; then
-    msg_error "Nie znaleziono szablonu '$TEMPLATE'. Sprawdź: pveam available --section system"
+
+  # Zweryfikuj
+  if ! pveam list "$TEMPLATE_STORAGE" 2>/dev/null | grep -q "$TEMPLATE_FULL"; then
+    msg_error "Nie znaleziono szablonu '$TEMPLATE'. Dostępne: pveam available --section system"
     exit 1
   fi
   msg_ok "Szablon: $TEMPLATE_FULL"
