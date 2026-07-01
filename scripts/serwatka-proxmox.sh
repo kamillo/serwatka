@@ -51,7 +51,7 @@ NODE_VERSION="20"
 SERVICE_PORT="3000"
 BRIDGE="${BRIDGE:-vmbr0}"
 
-GIT_REPO="${GIT_REPO:-}"
+GIT_REPO="${GIT_REPO:-https://github.com/kamillo/serwatka.git}"
 
 NET_MODE="${NET_MODE:-dhcp}"
 CT_IP="${CT_IP:-192.168.1.200/24}"
@@ -69,11 +69,22 @@ check_root
 
 header "serwatka — $(echo "$MODE" | tr 'a-z' 'A-Z') on CT $CT_ID"
 
-if [[ -z "$GIT_REPO" && "$MODE" == "install" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  if [[ ! -f "$SCRIPT_DIR/package.json" ]]; then
-    msg_error "No package.json found and GIT_REPO is not set."
-    msg_error "Either run from project root, set GIT_REPO, or use update mode."
+# Determine script dir safely — BASH_SOURCE is empty when run via `bash -c "$(wget ...)"`
+SCRIPT_DIR="."
+if [[ ${#BASH_SOURCE[@]} -gt 0 ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || echo ".")"
+fi
+
+if [[ -z "$GIT_REPO" ]]; then
+  if [[ "$MODE" == "update" ]]; then
+    msg_error "GIT_REPO must be set for update mode when running remotely."
+    msg_error "  GIT_REPO=https://github.com/kamillo/serwatka.git CT_ID=$CT_ID bash ..."
+    exit 1
+  fi
+  if [[ ! -f "$SCRIPT_DIR/package.json" && ! -f "./package.json" ]]; then
+    msg_error "GIT_REPO is not set and no local package.json found."
+    msg_error "Run from project root, or set GIT_REPO:"
+    msg_error "  GIT_REPO=https://github.com/kamillo/serwatka.git bash scripts/serwatka-proxmox.sh"
     exit 1
   fi
 fi
@@ -150,7 +161,7 @@ if [[ -n "$GIT_REPO" ]]; then
   msg_ok "Source cloned from Git"
 else
   msg_info "Copying local files to container"
-  cd "$(dirname "${BASH_SOURCE[0]}")/.."
+  cd "$SCRIPT_DIR"
   git ls-files 2>/dev/null || find . -not -path './node_modules/*' -not -path './.next/*' -not -path './.git/*' -type f | while IFS= read -r file; do
     pct exec "$CT_ID" -- mkdir -p "$(dirname "$APP_DIR/$file")" 2>/dev/null
     pct push "$CT_ID" "$file" "$APP_DIR/$file"
@@ -250,15 +261,6 @@ if [[ "$MODE" == "update" ]]; then
       }
     "
     msg_ok "Source updated from Git"
-  else
-    msg_info "Copying local files to container"
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-    cd "$SCRIPT_DIR"
-    git ls-files 2>/dev/null || find . -not -path './node_modules/*' -not -path './.next/*' -not -path './.git/*' -type f | while IFS= read -r file; do
-      pct exec "$CT_ID" -- mkdir -p "$(dirname "$APP_DIR/$file")" 2>/dev/null
-      pct push "$CT_ID" "$file" "$APP_DIR/$file"
-    done
-    msg_ok "Local files copied"
   fi
 
   # ── Rebuild ─────────────────────────────────────────────────────
