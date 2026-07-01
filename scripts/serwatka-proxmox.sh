@@ -24,7 +24,6 @@ trap 'msg_error "Błąd na linii $LINENO."' ERR
 CT_ID="${CT_ID:-300}"
 CT_NAME="${CT_NAME:-serwatka}"
 TEMPLATE="${TEMPLATE:-ubuntu-24.04-standard}"
-STORAGE="${STORAGE:-local}"
 DISK_SIZE="${DISK_SIZE:-8}"
 RAM="${RAM:-1024}"
 SWAP="${SWAP:-512}"
@@ -48,6 +47,21 @@ if ! command -v pct &>/dev/null; then
   exit 1
 fi
 
+# ─── Wykrywanie storage (wg konwencji community-scripts) ─────────────
+# Szablony (vztmpl) i rootfs (rootdir) mogą być na różnych storage'ach.
+# Domyślnie: local-lvm dla rootfs, local dla szablonów — auto-detekcja przez pvesm.
+TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(pvesm status -content vztmpl 2>/dev/null | awk 'NR>1{print $1; exit}')}"
+CONTAINER_STORAGE="${CONTAINER_STORAGE:-$(pvesm status -content rootdir 2>/dev/null | awk 'NR>1{print $1; exit}')}"
+
+if [[ -z "${CONTAINER_STORAGE}" ]]; then
+  msg_error "Brak storage obsługującego kontenery (rootdir). Ustaw CONTAINER_STORAGE ręcznie."
+  exit 1
+fi
+if [[ -z "${TEMPLATE_STORAGE}" ]]; then
+  msg_error "Brak storage dla szablonów (vztmpl). Ustaw TEMPLATE_STORAGE ręcznie."
+  exit 1
+fi
+
 # ─── Wykrywanie trybu ────────────────────────────────────────────────
 MODE="install"
 if pct status "$CT_ID" &>/dev/null; then
@@ -55,6 +69,7 @@ if pct status "$CT_ID" &>/dev/null; then
 fi
 
 header "serwatka — ${MODE^^} na CT $CT_ID"
+msg_info "Storage: rootfs=${CONTAINER_STORAGE}, templates=${TEMPLATE_STORAGE}"
 
 # ═════════════════════════════════════════════════════════════════════
 #  TRYB: INSTALL
@@ -64,13 +79,17 @@ if [[ "$MODE" == "install" ]]; then
   # ── Szablon ───────────────────────────────────────────────────────
   header "Pobieranie szablonu"
   pveam update >/dev/null 2>&1 || true
-  pveam download "$STORAGE" "$TEMPLATE" >/dev/null 2>&1 || true
-  TEMPLATE_PATH=$(ls /var/lib/vz/template/cache/${TEMPLATE}*.tar.* 2>/dev/null | head -1)
-  if [[ -z "${TEMPLATE_PATH:-}" ]]; then
+  # znajdź dokładną nazwę szablonu jeśli podano prefiks
+  TEMPLATE_FULL="${TEMPLATE}"
+  if ! pveam list "$TEMPLATE_STORAGE" 2>/dev/null | grep -q "$TEMPLATE"; then
+    pveam download "$TEMPLATE_STORAGE" "$TEMPLATE" >/dev/null 2>&1 || true
+  fi
+  TEMPLATE_FULL=$(pveam list "$TEMPLATE_STORAGE" 2>/dev/null | grep -o "$TEMPLATE[^ ]*" | head -1)
+  if [[ -z "${TEMPLATE_FULL}" ]]; then
     msg_error "Nie znaleziono szablonu '$TEMPLATE'. Sprawdź: pveam available --section system"
     exit 1
   fi
-  msg_ok "Szablon gotowy"
+  msg_ok "Szablon: $TEMPLATE_FULL"
 
   # ── Tworzenie kontenera ───────────────────────────────────────────
   header "Tworzenie kontenera $CT_NAME (CT $CT_ID)"
@@ -80,10 +99,9 @@ if [[ "$MODE" == "install" ]]; then
     NET0="name=eth0,bridge=${BRIDGE},ip=dhcp"
   fi
 
-  pct create "$CT_ID" "$TEMPLATE_PATH" \
+  pct create "$CT_ID" "${TEMPLATE_STORAGE}:vztmpl/${TEMPLATE_FULL}" \
     --hostname "$CT_NAME" \
-    --storage "$STORAGE" \
-    --rootfs "${STORAGE}:${DISK_SIZE}" \
+    --rootfs "${CONTAINER_STORAGE}:${DISK_SIZE}" \
     --memory "$RAM" \
     --swap "$SWAP" \
     --unprivileged 1 \
