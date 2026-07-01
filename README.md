@@ -35,21 +35,38 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-Komendy
+## Deployment na Proxmox VE (LXC)
 
-┌──────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│       Komenda        │                                                    Co robi                                                     │
-├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ npm run db:wipe      │ Usuwa wszystkie dane (wyceny, transakcje, aktywa, kategorie, user, FX, inflacja, importy) — zachowuje schemat  │
-├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ npm run db:demo      │ Importuje dane testowe: 6 aktywów, 54 wyceny, 4 transakcje (akcje → demo FIFO/ROI). Czyści tabele przed seedem │
-├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ npm run db:inflation │ Importuje inflację (41 miesięcy z cpi.json)                                                                    │
-├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ npm run db:fresh     │ Wszystko w jednym: demo + inflacja (czysta demonstracja)                                                       │
-├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ npm run db:studio    │ Prisma Studio — przeglądanie/edycja bazy w przeglądarce (localhost:5555)                                       │
-├──────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ npm run db:reset     │ Pełny reset (drop DB + remigracja + seed) — cięższy                                                            │
-└──────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Jednolinijkowiec — tworzy lub aktualizuje kontener LXC z aplikacją:
+
+```bash
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/kamillo/serwatka/refs/heads/master/scripts/serwatka-proxmox.sh)"
+```
+
+Kontener: Ubuntu 24.04, Node.js 20, SQLite. Aplikacja dostępna pod IP kontenera na porcie 3000.
+
+**Zmienne (opcjonalne):**
+
+| Zmienna | Domyślnie | Opis |
+|---|---|---|
+| `CT_ID` | `300` | ID kontenera w Proxmox |
+| `RAM` | `1024` | MB RAM |
+| `DISK_SIZE` | `4` | GB dysku |
+| `NET_MODE` | `dhcp` | `dhcp` lub `static` |
+| `GIT_REPO` | `""` | URL do repo (jeśli puste — kopiuje z lokalnych plików) |
+
+**Aktualizacja:** ponowne uruchomienie tego samego skryptu wykrywa istniejący kontener i wykonuje update (pull kodu, rebuild, migracje, restart).
+
+Po instalacji aplikacja dostępna pod `http://<IP-kontenera>:3000`.
+
+## Komendy
+
+| Komenda | Co robi |
+|---|---|
+| `npm run db:wipe` | Usuwa wszystkie dane (wyceny, transakcje, aktywa, kategorie, user, FX, inflacja, importy) — zachowuje schemat |
+| `npm run db:demo` | Importuje dane testowe: 6 aktywów, 54 wyceny, 4 transakcje (akcje → demo FIFO/ROI). Czyści tabele przed seedem |
+| `npm run db:inflation` | Importuje inflację (41 miesięcy z cpi.json) |
+| `npm run db:fresh` | Wszystko w jednym: demo + inflacja (czysta demonstracja) |
+| `npm run db:studio` | Prisma Studio — przeglądanie/edycja bazy w przeglądarce (localhost:5555) |
+| `npm run db:reset` | Pełny reset (drop DB + remigracja + seed) — cięższy |
 
