@@ -47,29 +47,55 @@ if ! command -v pct &>/dev/null; then
   exit 1
 fi
 
-# ─── Wykrywanie storage (wg konwencji community-scripts) ─────────────
-# Preferuj: local-lvm (rootfs) + local (szablony) — domyślne w Proxmox.
-# Fallback: pierwszy storage obsługujący dany content type.
-detect_storage() {
-  local content="$1" preferred="$2"
-  if pvesm status -content "$content" 2>/dev/null | awk 'NR>1{print $1}' | grep -qx "$preferred"; then
-    echo "$preferred"
+# ─── Wybór storage (interaktywny jak w community-scripts) ────────────
+# 1 storage  → auto-wybór
+# >1 storage → menu whiptail
+# 0 storage  → błąd
+select_storage() {
+  local class="$1" content
+  case "$class" in
+    container) content="rootdir" ;;
+    template)  content="vztmpl"  ;;
+    *) msg_error "Nieznany typ storage: $class"; exit 1 ;;
+  esac
+
+  local storages
+  storages=$(pvesm status -content "$content" 2>/dev/null | awk 'NR>1{print $1}')
+  local count
+  count=$(echo "$storages" | grep -c . || true)
+
+  if [[ "$count" -eq 0 ]]; then
+    msg_error "Brak storage typu '$content'. Ustaw ${class^^}_STORAGE ręcznie."
+    exit 1
+  fi
+
+  # Jeden storage — auto-wybór
+  if [[ "$count" -eq 1 ]]; then
+    echo "$storages"
     return
   fi
-  pvesm status -content "$content" 2>/dev/null | awk 'NR>1{print $1; exit}'
+
+  # Wiele — menu whiptail
+  local menu_items=()
+  while read -r s; do
+    menu_items+=("$s" "")
+  done <<< "$storages"
+
+  local choice
+  choice=$(whiptail --backtitle "serwatka — Proxmox VE" \
+    --title "Wybierz storage ($class)" \
+    --menu "\nWybierz storage dla: ${class}" \
+    16 60 6 "${menu_items[@]}" 3>&1 1>&2 2>&3) || {
+    msg_error "Anulowano wybór storage."
+    exit 1
+  }
+  echo "$choice"
 }
 
-CONTAINER_STORAGE="${CONTAINER_STORAGE:-$(detect_storage rootdir local-lvm)}"
-TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(detect_storage vztmpl local)}"
-
-if [[ -z "${CONTAINER_STORAGE}" ]]; then
-  msg_error "Brak storage obsługującego kontenery (rootdir). Ustaw CONTAINER_STORAGE ręcznie."
-  exit 1
-fi
-if [[ -z "${TEMPLATE_STORAGE}" ]]; then
-  msg_error "Brak storage dla szablonów (vztmpl). Ustaw TEMPLATE_STORAGE ręcznie."
-  exit 1
-fi
+# Pozwól na nadpisanie env vars, inaczej wybór interaktywny
+CONTAINER_STORAGE="${CONTAINER_STORAGE:-$(select_storage container)}"
+TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$(select_storage template)}"
+msg_ok "Storage: rootfs=${CONTAINER_STORAGE}, templates=${TEMPLATE_STORAGE}"
 
 # ─── Wykrywanie trybu ────────────────────────────────────────────────
 MODE="install"
@@ -78,7 +104,6 @@ if pct status "$CT_ID" &>/dev/null; then
 fi
 
 header "serwatka — ${MODE^^} na CT $CT_ID"
-msg_info "Storage: rootfs=${CONTAINER_STORAGE}, templates=${TEMPLATE_STORAGE}"
 
 # ═════════════════════════════════════════════════════════════════════
 #  TRYB: INSTALL
