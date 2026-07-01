@@ -1,0 +1,14 @@
+# serwatka — LXC container environment variables
+# Copy this to .env in the container or set before running lxc-setup.sh
+
+# Database — SQLite file path (inside container)
+DATABASE_URL="file:/opt/serwatka/data/serwatka.db"
+
+# Optional: Postgres swap (uncomment and comment SQLite above)
+# DATABASE_URL="postgresql://user:password@host:5432/serwatka"
+
+# Override container name (default: serwatka)
+# CONTAINER_NAME=serwatka
+
+# Override host port mapping (default: 3000)
+# HOST_PORT=3000
