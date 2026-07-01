@@ -20,6 +20,31 @@ header()    { echo -e "\n ${BL}━━━ $* ━━━${CL}\n"; }
 
 trap 'msg_error "Błąd na linii $LINENO."' ERR
 
+# ─── Serwis systemd (wspólny dla install i update) ──────────────────
+setup_service() {
+  pct exec "$CT_ID" -- bash -lc "cat > /etc/systemd/system/serwatka.service <<'SVCEOF'
+[Unit]
+Description=serwatka — Net Worth Tracker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=${APP_DIR}
+ExecStart=/usr/bin/npm run start
+Environment=NODE_ENV=production
+Environment=PORT=${SERVICE_PORT}
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF"
+  pct exec "$CT_ID" -- bash -lc "systemctl daemon-reload && systemctl enable serwatka && systemctl restart serwatka"
+}
+
 # ─── Konfiguracja ────────────────────────────────────────────────────
 CT_ID="${CT_ID:-300}"
 CT_NAME="${CT_NAME:-serwatka}"
@@ -215,27 +240,7 @@ if [[ "$MODE" == "install" ]]; then
 
   # ── Serwis systemd ────────────────────────────────────────────────
   header "Konfiguracja serwisu"
-  pct exec "$CT_ID" -- bash -lc "cat > /etc/systemd/system/serwatka.service <<'SVCEOF'
-[Unit]
-Description=serwatka — Net Worth Tracker
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=exec
-WorkingDirectory=${APP_DIR}
-ExecStart=/usr/bin/npm run start
-Environment=NODE_ENV=production
-Environment=PORT=${SERVICE_PORT}
-Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-SVCEOF"
-  pct exec "$CT_ID" -- bash -lc "systemctl daemon-reload && systemctl enable --now serwatka"
+  setup_service
   msg_ok "serwatka.service uruchomiony"
 
 fi
@@ -279,11 +284,11 @@ if [[ "$MODE" == "update" ]]; then
   pct exec "$CT_ID" -- bash -lc "cd ${APP_DIR} && npx prisma migrate deploy"
   msg_ok "Migracje aktualne"
 
-  # ── Oczyszczenie + restart ────────────────────────────────────────
+  # ── Oczyszczenie + serwis ─────────────────────────────────────────
   pct exec "$CT_ID" -- bash -lc "cd ${APP_DIR} && npm prune --omit=dev"
-  header "Restart serwisu"
-  pct exec "$CT_ID" -- bash -lc "systemctl restart serwatka"
-  msg_ok "serwatka.service zrestartowany"
+  header "Serwis systemd"
+  setup_service
+  msg_ok "serwatka.service uruchomiony"
 
 fi
 
