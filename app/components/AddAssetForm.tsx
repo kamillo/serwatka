@@ -4,6 +4,9 @@ import { useActionState } from "react";
 import { createAsset, type ActionResult } from "@/lib/actions/assets";
 import type { Category } from "@prisma/client";
 
+// Waluty z tabeli A NBP (kursy średnie). Pozycje z NBP dostępnymi bez klucza.
+const CURRENCIES = ["PLN", "USD", "EUR", "GBP", "CHF", "CZK", "NOK", "SEK", "DKK", "JPY", "CAD", "AUD", "CNY", "HUF"];
+
 export function AddAssetForm({ categories }: { categories: Category[] }) {
   const [state, formAction, pending] = useActionState(
     async (_prev: ActionResult<{ id: string }> | null, fd: FormData) => {
@@ -45,13 +48,17 @@ export function AddAssetForm({ categories }: { categories: Category[] }) {
         </label>
         <label className="block">
           <span className="text-xs font-medium text-slate-400">Waluta</span>
-          <input
-            type="text"
+          <select
             name="currency"
             defaultValue="PLN"
-            maxLength={3}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 uppercase placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
-          />
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 

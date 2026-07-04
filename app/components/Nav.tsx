@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/", label: "Dashboard", exact: true },
   { href: "/import", label: "Import" },
   { href: "/inflation", label: "Inflacja" },
+  { href: "/income", label: "Dochód" },
   { href: "/compare", label: "Porównaj" },
   { href: "/export", label: "Eksport" },
 ];

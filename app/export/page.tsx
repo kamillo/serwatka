@@ -6,10 +6,11 @@ export const dynamic = "force-dynamic";
 
 export default async function ExportPage() {
   const userId = await getCurrentUserId();
-  const [assets, valuations, transactions] = await Promise.all([
+  const [assets, valuations, transactions, incomeRecords] = await Promise.all([
     prisma.asset.count({ where: { userId } }),
     prisma.valuation.count({ where: { userId } }),
     prisma.transaction.count({ where: { userId } }),
+    prisma.incomeRecord.count({ where: { userId } }),
   ]);
 
   const btn =
@@ -35,11 +36,13 @@ export default async function ExportPage() {
           <span><b className="text-slate-200">{assets}</b> aktywów</span>
           <span><b className="text-slate-200">{valuations}</b> wycen</span>
           <span><b className="text-slate-200">{transactions}</b> transakcji</span>
+          <span><b className="text-slate-200">{incomeRecords}</b> wpisów dochodowych</span>
         </div>
         <div className="flex flex-wrap gap-3">
           <a className={btn} href="/api/export/json">⬇ Peły backup (JSON)</a>
           <a className={btn} href="/api/export/valuations">⬇ Wyceny (CSV)</a>
           <a className={btn} href="/api/export/transactions">⬇ Transakcje (CSV)</a>
+          <a className={btn} href="/api/export/income">⬇ Dochód (CSV)</a>
         </div>
         <p className="mt-3 text-xs text-slate-500">
           CSV z BOM (UTF-8) — otwiera się czysto w polskim Excelu. JSON zawiera wszystko

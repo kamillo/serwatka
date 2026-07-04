@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
-import { exportJson, exportTransactionsCsv, exportValuationsCsv } from "@/lib/export";
+import { exportIncomeCsv, exportJson, exportTransactionsCsv, exportValuationsCsv } from "@/lib/export";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +37,15 @@ export async function GET(
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="transakcje-${date}.csv"`,
+      },
+    });
+  }
+  if (type === "income") {
+    const csv = await exportIncomeCsv();
+    return new Response("﻿" + csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="dochod-${date}.csv"`,
       },
     });
   }

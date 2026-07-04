@@ -58,6 +58,9 @@ async function main() {
   await prisma.importJob.deleteMany();
   await prisma.fxRate.deleteMany();
   await prisma.macroInflation.deleteMany();
+  await prisma.incomeExpense.deleteMany();
+  await prisma.incomeRecord.deleteMany();
+  await prisma.person.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.category.deleteMany();
   await prisma.user.deleteMany();
@@ -132,8 +135,45 @@ async function main() {
     totalTx = STOCKS_TX.length;
   }
 
+  // demo dochodu (2 osoby × kilka miesięcy)
+  const persons = [
+    { name: "Kamil", colorHex: "#10b981", order: 1 },
+    { name: "Anna", colorHex: "#06b6d4", order: 2 },
+  ];
+  const personIds: Record<string, string> = {};
+  for (const p of persons) {
+    const created = await prisma.person.create({ data: { ...p, userId: user.id } });
+    personIds[p.name] = created.id;
+  }
+  const incomeMonths = ["2026-03", "2026-04", "2026-05", "2026-06"];
+  const personIncome: Record<string, { income: number; tax: number; zus: number }> = {
+    Kamil: { income: 18000, tax: 3600, zus: 1634 },
+    Anna: { income: 12000, tax: 2280, zus: 1634 },
+  };
+  let incomeRecords = 0;
+  for (const name of Object.keys(personIncome)) {
+    const base = personIncome[name];
+    for (const m of incomeMonths) {
+      const rec = await prisma.incomeRecord.create({
+        data: {
+          userId: user.id,
+          personId: personIds[name],
+          month: new Date(`${m}-01T00:00:00.000Z`),
+          income: base.income,
+          tax: base.tax,
+          zus: base.zus,
+          note: "Demo",
+        },
+      });
+      await prisma.incomeExpense.create({
+        data: { recordId: rec.id, label: "Biuro rachunkowe", amount: 300 },
+      });
+      incomeRecords++;
+    }
+  }
+
   console.log(
-    `✓ Demo: 1 user, ${categories.length} kategorii, ${assets.length} aktywów, ${totalValuations} wycen, ${totalTx} transakcji`
+    `✓ Demo: 1 user, ${categories.length} kategorii, ${assets.length} aktywów, ${totalValuations} wycen, ${totalTx} transakcji, ${persons.length} osób, ${incomeRecords} wpisów dochodowych`
   );
 }
 

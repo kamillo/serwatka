@@ -10,6 +10,7 @@ import {
   type ValuationPoint,
 } from "./lkv";
 import type { InflationPoint } from "./inflation";
+import { aggregateByMonth, type MonthAggregate } from "./income";
 
 export type RangePreset = "1M" | "6M" | "YTD" | "1Y" | "MAX";
 
@@ -210,4 +211,160 @@ export async function getCompareAssets(): Promise<CompareAsset[]> {
       })),
     }))
     .filter((a) => a.points.length > 0);
+}
+
+// --- Moduł Dochód ---
+
+export type PersonView = { id: string; name: string; colorHex: string; order: number };
+
+export async function getPeople(): Promise<PersonView[]> {
+  const userId = await getCurrentUserId();
+  const people = await prisma.person.findMany({
+    where: { userId },
+    orderBy: { order: "asc" },
+  });
+  return people.map((p) => ({ id: p.id, name: p.name, colorHex: p.colorHex, order: p.order }));
+}
+
+export type IncomeRecordView = {
+  id: string;
+  personId: string;
+  month: string; // YYYY-MM
+  income: number;
+  tax: number;
+  zus: number;
+  note: string | null;
+  expenses: { label: string; amount: number }[];
+};
+
+type IncomeRecordRow = {
+  id: string;
+  personId: string;
+  month: Date;
+  income: Prisma.Decimal;
+  tax: Prisma.Decimal;
+  zus: Prisma.Decimal;
+  note: string | null;
+  expenses: { label: string; amount: Prisma.Decimal }[];
+};
+
+function incomeRecordToView(r: IncomeRecordRow): IncomeRecordView {
+  return {
+    id: r.id,
+    personId: r.personId,
+    month: r.month.toISOString().slice(0, 7),
+    income: Number(r.income),
+    tax: Number(r.tax),
+    zus: Number(r.zus),
+    note: r.note,
+    expenses: r.expenses.map((e) => ({ label: e.label, amount: Number(e.amount) })),
+  };
+}
+
+/** Rekordy dochodowe dla danego miesiąca (z wydatkami). */
+export async function getIncomeRecords(month: string): Promise<IncomeRecordView[]> {
+  const userId = await getCurrentUserId();
+  const monthDate = new Date(`${month}-01T00:00:00.000Z`);
+  const rows = await prisma.incomeRecord.findMany({
+    where: { userId, month: monthDate },
+    include: { expenses: true },
+  });
+  return rows.map(incomeRecordToView);
+}
+
+/** Mapa personId → rekord dla miesiąca (do prefill formularza). */
+export async function getIncomeRecordByPerson(
+  month: string
+): Promise<Record<string, IncomeRecordView>> {
+  const rows = await getIncomeRecords(month);
+  const map: Record<string, IncomeRecordView> = {};
+  for (const r of rows) map[r.personId] = r;
+  return map;
+}
+
+/** Serie miesięczne dochodu (suma po osobach), chronologicznie. */
+export async function getIncomeSeries(): Promise<MonthAggregate[]> {
+  const userId = await getCurrentUserId();
+  const rows = await prisma.incomeRecord.findMany({
+    where: { userId },
+    include: { expenses: true },
+    orderBy: { month: "asc" },
+  });
+  return aggregateByMonth(rows.map(incomeRecordToView));
+}
+
+export type IncomeYearlyRow = {
+  personId: string;
+  name: string;
+  colorHex: string;
+  income: number;
+  tax: number;
+  zus: number;
+  expenses: number;
+  net: number;
+  effRate: number | null; // podatek / przychód
+};
+
+/** Agregaty roczne per osoba + łącznie (stopa efektywna podatku). */
+export async function getIncomeYearly(
+  year: number
+): Promise<{ rows: IncomeYearlyRow[]; total: IncomeYearlyRow }> {
+  const userId = await getCurrentUserId();
+  const start = new Date(Date.UTC(year, 0, 1));
+  const end = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+  const records = await prisma.incomeRecord.findMany({
+    where: { userId, month: { gte: start, lte: end } },
+    include: { person: true, expenses: true },
+  });
+
+  const byPerson = new Map<string, IncomeYearlyRow>();
+  for (const r of records) {
+    const exp = r.expenses.reduce((s, e) => s + Number(e.amount), 0);
+    const income = Number(r.income);
+    const tax = Number(r.tax);
+    const zus = Number(r.zus);
+    const cur =
+      byPerson.get(r.personId) ??
+      {
+        personId: r.personId,
+        name: r.person.name,
+        colorHex: r.person.colorHex,
+        income: 0,
+        tax: 0,
+        zus: 0,
+        expenses: 0,
+        net: 0,
+        effRate: null,
+      };
+    cur.income += income;
+    cur.tax += tax;
+    cur.zus += zus;
+    cur.expenses += exp;
+    cur.net += income - tax - zus - exp;
+    byPerson.set(r.personId, cur);
+  }
+
+  const rows = [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const total: IncomeYearlyRow = {
+    personId: "",
+    name: "Razem",
+    colorHex: "",
+    income: 0,
+    tax: 0,
+    zus: 0,
+    expenses: 0,
+    net: 0,
+    effRate: null,
+  };
+  for (const r of rows) {
+    total.income += r.income;
+    total.tax += r.tax;
+    total.zus += r.zus;
+    total.expenses += r.expenses;
+    total.net += r.net;
+  }
+  const eff = (r: IncomeYearlyRow) => (r.income > 0 ? r.tax / r.income : null);
+  rows.forEach((r) => (r.effRate = eff(r)));
+  total.effRate = eff(total);
+  return { rows, total };
 }

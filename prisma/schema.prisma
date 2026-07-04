@@ -36,6 +36,8 @@ model User {
   valuations   Valuation[]
   importJobs   ImportJob[]
   transactions Transaction[]
+  persons      Person[]
+  incomeRecords IncomeRecord[]
 }
 
 // --- Zadanie importu (historia + konfiguracja mapowania) ---
@@ -160,4 +162,52 @@ model MacroInflation {
 
   @@unique([month])
   @@map("macro_inflation")
+}
+
+// --- Moduł Dochód: profil osoby (Kamil, Anna…) ---
+model Person {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  colorHex  String         @default("#10b981")
+  order     Int            @default(0)
+  createdAt DateTime       @default(now())
+  records   IncomeRecord[]
+
+  @@index([userId])
+  @@map("persons")
+}
+
+// --- Wpis dochodowy: 1 na osobę × miesiąc ---
+model IncomeRecord {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personId  String
+  person    Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
+  month     DateTime        // pierwszy dzień miesiąca (YYYY-MM-01)
+  income    Decimal         @default(0) // przychód
+  tax       Decimal         @default(0) // podatek do zapłacenia
+  zus       Decimal         @default(0) // składki ZUS
+  note      String?
+  expenses  IncomeExpense[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([personId, month])
+  @@index([userId, month])
+  @@map("income_records")
+}
+
+// --- Pozycja „innych wydatków" w wpisie (np. biuro rachunkowe) ---
+model IncomeExpense {
+  id        String       @id @default(cuid())
+  recordId  String
+  record    IncomeRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  label     String
+  amount    Decimal
+
+  @@index([recordId])
+  @@map("income_expenses")
 }

@@ -34,3 +34,25 @@ export function formatDate(date: Date | string): string {
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+/** Bieżący miesiąc jako YYYY-MM. */
+export function currentMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+/** Przesuwa miesiąc YYYY-MM o delta miesięcy. */
+export function monthOffset(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+}
+
+const MONTHS_PL = [
+  "styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec",
+  "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień",
+];
+
+/** „lipiec 2026" z YYYY-MM. */
+export function formatMonthPL(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return `${MONTHS_PL[(m - 1) % 12] ?? ""} ${y}`;
+}
