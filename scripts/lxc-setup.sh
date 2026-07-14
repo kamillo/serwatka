@@ -97,6 +97,14 @@ lxc exec "$CONTAINER_NAME" -- bash -c "
   npm run db:fresh 2>/dev/null || echo '    (seed skipped — already populated or no seed script)'
 "
 
+# --- Step 8.5: Fix ownership for nobody (service user) ---
+# Baza i .next powstały jako root (lxc exec) — apka działa jako nobody i musi móc zapisywać
+# (SQLite tworzy pliki -wal/-shm; next start może pisać do .next/cache).
+echo "==> Fixing ownership for nobody:nogroup ..."
+lxc exec "$CONTAINER_NAME" -- bash -c "
+  chown -R nobody:nogroup $APP_DIR/data $APP_DIR/.next 2>/dev/null || true
+"
+
 # --- Step 9: Set up systemd service ---
 echo "==> Creating systemd service ..."
 lxc exec "$CONTAINER_NAME" -- bash -c "

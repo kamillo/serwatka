@@ -198,28 +198,33 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
     if (!parsed || !canCommitFinal) return;
     setCommitting(true);
     setError(null);
-    const res = await commitIncomeImport({
-      rows: parsed.rows,
-      mapping: {
-        person: mapping.person,
-        personManual: mapping.personManual,
-        month: mapping.month,
-        income: mapping.income,
-        vat: mapping.vat,
-        pit: mapping.pit,
-        zus: mapping.zus,
-        expenseColumns: mapping.expenseColumns.filter((e) => !!e.column),
-      },
-      dateFormat,
-      decimalSeparator,
-      createMissingPeople: createMissing,
-    });
-    setCommitting(false);
-    if (res.ok) {
-      setResult(res.data);
-      setStep("done");
-    } else {
-      setError(res.error);
+    try {
+      const res = await commitIncomeImport({
+        rows: parsed.rows,
+        mapping: {
+          person: mapping.person,
+          personManual: mapping.personManual,
+          month: mapping.month,
+          income: mapping.income,
+          vat: mapping.vat,
+          pit: mapping.pit,
+          zus: mapping.zus,
+          expenseColumns: mapping.expenseColumns.filter((e) => !!e.column),
+        },
+        dateFormat,
+        decimalSeparator,
+        createMissingPeople: createMissing,
+      });
+      if (res.ok) {
+        setResult(res.data);
+        setStep("done");
+      } else {
+        setError(res.error);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Błąd importu — sprawdź logi serwera.");
+    } finally {
+      setCommitting(false);
     }
   }
 
