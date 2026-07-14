@@ -9,30 +9,68 @@ import { formatPLN } from "@/lib/format";
 
 const FIELD =
   "mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30";
+const FIELD_SM =
+  "w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30";
 
 type Parsed = { headers: string[]; rows: Record<string, string>[]; encoding: string; delimiter: string };
-type Mapping = { person: string; month: string; income: string; tax: string; zus: string; expenses: string };
+type ExpenseColumn = { column: string; label: string; type: "expense" | "adjustment" };
+type Mapping = {
+  person: string; // kolumna CSV z nazwą osoby (opcjonalna)
+  personManual: string; // fallback: ręcznie wpisana osoba
+  month: string;
+  income: string;
+  vat: string;
+  pit: string;
+  zus: string;
+  expenseColumns: ExpenseColumn[];
+};
 
-const FIELDS: { key: keyof Mapping; label: string; required?: boolean }[] = [
-  { key: "person", label: "Osoba (nazwa)", required: true },
+const CORE_FIELDS: { key: "person" | "month" | "income" | "vat" | "pit" | "zus"; label: string; required?: boolean }[] = [
+  { key: "person", label: "Osoba — kolumna" },
   { key: "month", label: "Miesiąc", required: true },
   { key: "income", label: "Przychód" },
-  { key: "tax", label: "Podatek" },
+  { key: "vat", label: "VAT" },
+  { key: "pit", label: "PIT" },
   { key: "zus", label: "ZUS" },
-  { key: "expenses", label: "Inne wydatki (łącznie)" },
 ];
 
 function suggest(headers: string[]): Mapping {
   const find = (re: RegExp) => headers.find((h) => re.test(h.toLowerCase())) ?? "";
+  const expenseColumns: ExpenseColumn[] = [];
+  for (const h of headers) {
+    const hl = h.toLowerCase();
+    if (/(wyrówn|wyrow|adjust|korek|sett|reconc)/.test(hl)) {
+      expenseColumns.push({ column: h, label: h, type: "adjustment" });
+    } else if (/(wydat|koszt|expense|księ|ksieg|biuro|innych)/.test(hl)) {
+      expenseColumns.push({ column: h, label: h, type: "expense" });
+    }
+  }
+  const vatCol = find(/vat/);
+  let pitCol = find(/pit|dochod/);
+  // fallback: ogólny „podatek"/„tax" bez kwalifikatora → traktowany jako PIT
+  if (!pitCol) pitCol = find(/podat|tax/);
   return {
     person: find(/osob|person|imię|imie|kto/),
+    personManual: "",
     month: find(/mies|month|data|okres/),
     income: find(/przych|income|brutto|utarg/),
-    tax: find(/podat|tax|vat|pit/),
+    vat: vatCol,
+    pit: pitCol,
     zus: find(/zus|skład|sklad/),
-    expenses: find(/wydat|koszt|expense|ksieg|biuro/),
+    expenseColumns,
   };
 }
+
+const EMPTY_MAP: Mapping = {
+  person: "",
+  personManual: "",
+  month: "",
+  income: "",
+  vat: "",
+  pit: "",
+  zus: "",
+  expenseColumns: [],
+};
 
 export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonView[] }) {
   const existingNames = new Set(existingPeople.map((p) => p.name.toLowerCase().trim()));
@@ -40,7 +78,7 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
   const [step, setStep] = useState<"upload" | "map" | "done">("upload");
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<Parsed | null>(null);
-  const [mapping, setMapping] = useState<Mapping>({ person: "", month: "", income: "", tax: "", zus: "", expenses: "" });
+  const [mapping, setMapping] = useState<Mapping>(EMPTY_MAP);
   const [dateFormat, setDateFormat] = useState("YYYY-MM-DD");
   const [decimalSeparator, setDecimalSeparator] = useState<"," | ".">(",");
   const [createMissing, setCreateMissing] = useState(true);
@@ -50,34 +88,90 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<IncomeImportSummary | null>(null);
 
+  const resolvePerson = (row: Record<string, string>) => {
+    const v = mapping.person ? (row[mapping.person] ?? "").trim() : "";
+    return v || mapping.personManual.trim();
+  };
+
   const preview = useMemo(() => {
     if (!parsed) return [];
     return parsed.rows.slice(0, 8).map((row) => {
-      const g = (k: keyof Mapping) => (mapping[k] ? (row[mapping[k]] ?? "").trim() : "");
-      const { iso } = parseDate(g("month"), dateFormat);
+      const person = resolvePerson(row);
+      const monthRaw = mapping.month ? (row[mapping.month] ?? "").trim() : "";
+      const { iso } = parseDate(monthRaw, dateFormat);
+      const num = (k: "income" | "vat" | "pit" | "zus") =>
+        mapping[k] ? parseAmount((row[mapping[k]] ?? "").trim(), decimalSeparator, "") : null;
+      const lines = mapping.expenseColumns.map((ec) => {
+        const raw = (row[ec.column] ?? "").trim();
+        const p = raw ? parseAmount(raw, decimalSeparator, "") : null;
+        const amount = p == null ? null : ec.type === "expense" ? Math.abs(p) : p;
+        return { ec, amount };
+      });
+      // suma wydatków wg typu: wyrównanie ma znak odwrócony
+      const totalExpenses = lines.reduce((s, l) => {
+        if (l.amount == null) return s;
+        return s + (l.ec.type === "adjustment" ? -l.amount : l.amount);
+      }, 0);
       return {
-        person: g("person"),
+        person,
         month: iso ? iso.slice(0, 7) : "—",
-        income: mapping.income ? parseAmount(g("income"), decimalSeparator, "") : null,
-        tax: mapping.tax ? parseAmount(g("tax"), decimalSeparator, "") : null,
-        zus: mapping.zus ? parseAmount(g("zus"), decimalSeparator, "") : null,
-        expenses: mapping.expenses ? parseAmount(g("expenses"), decimalSeparator, "") : null,
-        ok: !!iso && !!g("person"),
+        income: num("income"),
+        vat: num("vat"),
+        pit: num("pit"),
+        zus: num("zus"),
+        lines,
+        totalExpenses,
+        ok: !!iso && !!person,
       };
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed, mapping, dateFormat, decimalSeparator]);
 
   const distinctPeople = useMemo(() => {
-    if (!parsed || !mapping.person) return [];
+    if (!parsed) return [];
     const set = new Set<string>();
     for (const r of parsed.rows) {
-      const v = (r[mapping.person] ?? "").trim();
-      if (v) set.add(v);
+      const name = resolvePerson(r);
+      if (name) set.add(name);
     }
     return [...set];
-  }, [parsed, mapping.person]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsed, mapping.person, mapping.personManual]);
 
-  const canCommit = !!parsed && !!mapping.person && !!mapping.month;
+  const canCommitFinal = !!parsed && !!mapping.month && (!!mapping.person || mapping.personManual.trim().length > 0);
+
+  function addExpenseColumn() {
+    setMapping((m) => ({
+      ...m,
+      expenseColumns: [...m.expenseColumns, { column: "", label: "", type: "expense" }],
+    }));
+  }
+  function setEcColumn(i: number, column: string) {
+    setMapping((m) => ({
+      ...m,
+      expenseColumns: m.expenseColumns.map((e, j) => {
+        if (j !== i) return e;
+        // auto-uzupełnij etykietę, gdy pusta lub niezminiana (= stara kolumna)
+        const label = e.label.trim() === "" || e.label === e.column ? column : e.label;
+        return { ...e, column, label };
+      }),
+    }));
+  }
+  function setEcLabel(i: number, label: string) {
+    setMapping((m) => ({
+      ...m,
+      expenseColumns: m.expenseColumns.map((e, j) => (j === i ? { ...e, label } : e)),
+    }));
+  }
+  function setEcType(i: number, type: "expense" | "adjustment") {
+    setMapping((m) => ({
+      ...m,
+      expenseColumns: m.expenseColumns.map((e, j) => (j === i ? { ...e, type } : e)),
+    }));
+  }
+  function removeEc(i: number) {
+    setMapping((m) => ({ ...m, expenseColumns: m.expenseColumns.filter((_, j) => j !== i) }));
+  }
 
   async function onParse() {
     if (!file) return;
@@ -101,12 +195,21 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
   }
 
   async function onCommit() {
-    if (!parsed || !canCommit) return;
+    if (!parsed || !canCommitFinal) return;
     setCommitting(true);
     setError(null);
     const res = await commitIncomeImport({
       rows: parsed.rows,
-      mapping,
+      mapping: {
+        person: mapping.person,
+        personManual: mapping.personManual,
+        month: mapping.month,
+        income: mapping.income,
+        vat: mapping.vat,
+        pit: mapping.pit,
+        zus: mapping.zus,
+        expenseColumns: mapping.expenseColumns.filter((e) => !!e.column),
+      },
       dateFormat,
       decimalSeparator,
       createMissingPeople: createMissing,
@@ -135,7 +238,7 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
       {step === "upload" && (
         <div className="space-y-4">
           <p className="text-xs text-slate-500">
-            CSV z kolumnami: osoba, miesiąc, przychód, podatek, ZUS, inne wydatki. Osoby dopasowane po nazwie (brakujące utworzone).
+            CSV z kolumnami: osoba (opcjonalna — można wpisać ręcznie), miesiąc, przychód, VAT, PIT, ZUS oraz dowolna liczba kolumn wydatków i wyrównań (±). Osoby dopasowane po nazwie, brakujące utworzone.
           </p>
           <input
             type="file"
@@ -158,8 +261,10 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
           <p className="text-xs text-slate-500">
             Wykryto: separator <b>{parsed.delimiter}</b> · kodowanie <b>{parsed.encoding}</b> · {parsed.rows.length} wierszy
           </p>
+
+          {/* Podstawowe pola */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {FIELDS.map((f) => (
+            {CORE_FIELDS.map((f) => (
               <label key={f.key} className="block">
                 <span className="text-xs font-medium text-slate-400">
                   {f.label}
@@ -179,6 +284,20 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
                 </select>
               </label>
             ))}
+
+            {/* Osoba — ręczny fallback */}
+            <label className="block">
+              <span className="text-xs font-medium text-slate-400">
+                Osoba — ręcznie <span className="text-slate-600">(gdy brak w pliku)</span>
+              </span>
+              <input
+                value={mapping.personManual}
+                onChange={(e) => setMapping((m) => ({ ...m, personManual: e.target.value }))}
+                placeholder="np. Jan Kowalski"
+                className={FIELD}
+              />
+            </label>
+
             <label className="block">
               <span className="text-xs font-medium text-slate-400">Format daty</span>
               <select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)} className={FIELD}>
@@ -200,6 +319,64 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
             </label>
           </div>
 
+          {/* Kolumny wydatków / wyrównań */}
+          <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400">
+                Inne wydatki / wyrównania <span className="text-slate-600">(kolumny)</span>
+              </span>
+              <button onClick={addExpenseColumn} className="text-xs text-emerald-400 hover:text-emerald-300">
+                + dodaj kolumnę
+              </button>
+            </div>
+            {mapping.expenseColumns.length === 0 ? (
+              <p className="text-xs text-slate-500">
+                Brak kolumn. Dodaj, aby importować pozycje „innych wydatków" (wartość dodatnia) lub „wyrównania" (wartość ze znakiem ± — korekta netto).
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {mapping.expenseColumns.map((ec, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={ec.column}
+                      onChange={(e) => setEcColumn(i, e.target.value)}
+                      className={`${FIELD_SM} mt-0 max-w-[180px]`}
+                    >
+                      <option value="">— kolumna —</option>
+                      {parsed.headers.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={ec.label}
+                      onChange={(e) => setEcLabel(i, e.target.value)}
+                      placeholder="etykieta"
+                      className={`${FIELD_SM} mt-0 max-w-[160px]`}
+                    />
+                    <select
+                      value={ec.type}
+                      onChange={(e) => setEcType(i, e.target.value as "expense" | "adjustment")}
+                      className={`${FIELD_SM} mt-0 max-w-[150px]`}
+                    >
+                      <option value="expense">Wydatek (+)</option>
+                      <option value="adjustment">Wyrównanie (±)</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => removeEc(i)}
+                      className="shrink-0 self-center rounded-md border border-white/10 px-2 py-1 text-xs text-slate-400 hover:bg-white/5"
+                      aria-label="Usuń kolumnę"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {distinctPeople.length > 0 && (
             <div className="rounded-md bg-white/[0.03] p-3 text-xs">
               <span className="text-slate-400">Osoby ({distinctPeople.length}): </span>
@@ -211,6 +388,7 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
             </div>
           )}
 
+          {/* Podgląd */}
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -218,9 +396,16 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
                   <th className="py-1 pr-2">Osoba</th>
                   <th className="py-1 pr-2">Miesiąc</th>
                   <th className="py-1 pr-2">Przychód</th>
-                  <th className="py-1 pr-2">Podatek</th>
+                  <th className="py-1 pr-2">VAT</th>
+                  <th className="py-1 pr-2">PIT</th>
                   <th className="py-1 pr-2">ZUS</th>
-                  <th className="py-1 pr-2">Wydatki</th>
+                  {mapping.expenseColumns.map((ec, i) => (
+                    <th key={i} className="py-1 pr-2 whitespace-nowrap">
+                      {ec.label || ec.column || "—"}
+                      {ec.type === "adjustment" && <span className="text-amber-500"> ±</span>}
+                    </th>
+                  ))}
+                  {mapping.expenseColumns.length > 0 && <th className="py-1 pr-2">Razem wydatki</th>}
                 </tr>
               </thead>
               <tbody>
@@ -229,9 +414,24 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
                     <td className="py-1 pr-2 text-slate-300">{r.person || "—"}</td>
                     <td className={`py-1 pr-2 ${r.month === "—" ? "text-red-400" : "text-slate-300"}`}>{r.month}</td>
                     <td className="py-1 pr-2 text-slate-300">{r.income == null ? "—" : formatPLN(r.income)}</td>
-                    <td className="py-1 pr-2 text-slate-300">{r.tax == null ? "—" : formatPLN(r.tax)}</td>
+                    <td className="py-1 pr-2 text-slate-300">{r.vat == null ? "—" : formatPLN(r.vat)}</td>
+                    <td className="py-1 pr-2 text-slate-300">{r.pit == null ? "—" : formatPLN(r.pit)}</td>
                     <td className="py-1 pr-2 text-slate-300">{r.zus == null ? "—" : formatPLN(r.zus)}</td>
-                    <td className="py-1 pr-2 text-slate-300">{r.expenses == null ? "—" : formatPLN(r.expenses)}</td>
+                    {r.lines.map((l, j) => (
+                      <td
+                        key={j}
+                        className={`py-1 pr-2 tabular-nums ${
+                          l.amount == null ? "text-slate-600" : l.amount < 0 ? "text-amber-400" : "text-slate-300"
+                        }`}
+                      >
+                        {l.amount == null ? "—" : formatPLN(l.amount)}
+                      </td>
+                    ))}
+                    {mapping.expenseColumns.length > 0 && (
+                      <td className={`py-1 pr-2 tabular-nums font-medium ${r.totalExpenses < 0 ? "text-amber-400" : "text-slate-300"}`}>
+                        {formatPLN(r.totalExpenses)}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -244,7 +444,7 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
             </button>
             <button
               onClick={onCommit}
-              disabled={!canCommit || committing}
+              disabled={!canCommitFinal || committing}
               className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
             >
               {committing ? "Importuję…" : "Importuj"}
@@ -269,7 +469,7 @@ export function IncomeImportWizard({ existingPeople }: { existingPeople: PersonV
               Zobacz w Dochodzie
             </Link>
             <button
-              onClick={() => { setStep("upload"); setParsed(null); setFile(null); setResult(null); }}
+              onClick={() => { setStep("upload"); setParsed(null); setFile(null); setResult(null); setMapping(EMPTY_MAP); }}
               className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-200 hover:bg-white/5"
             >
               Importuj kolejny

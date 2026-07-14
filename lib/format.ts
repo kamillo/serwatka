@@ -56,3 +56,25 @@ export function formatMonthPL(month: string): string {
   const [y, m] = month.split("-").map(Number);
   return `${MONTHS_PL[(m - 1) % 12] ?? ""} ${y}`;
 }
+
+export type MonthRangePreset = "3M" | "6M" | "YTD" | "1Y" | "MAX";
+
+/** Rozwiązuje preset zakresu miesięcy (względem refMonth, domyślnie bieżący). */
+export function resolveMonthRange(
+  preset: MonthRangePreset,
+  refMonth = currentMonth()
+): { from: string; to: string } {
+  const to = refMonth;
+  switch (preset) {
+    case "3M":
+      return { from: monthOffset(to, -2), to };
+    case "6M":
+      return { from: monthOffset(to, -5), to };
+    case "YTD":
+      return { from: `${to.slice(0, 4)}-01`, to };
+    case "1Y":
+      return { from: monthOffset(to, -11), to };
+    case "MAX":
+      return { from: "1900-01", to: "2999-12" };
+  }
+}

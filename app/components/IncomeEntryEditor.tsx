@@ -1,52 +1,44 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { upsertIncomeRecord } from "@/lib/actions/income";
+import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
+import { deleteIncomeRecord, upsertIncomeRecord } from "@/lib/actions/income";
 import type { ActionResult } from "@/lib/actions/assets";
-import type { IncomeRecordView, PersonView } from "@/lib/data";
+import type { IncomeRecordView } from "@/lib/data";
 
 const FIELD =
   "mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30";
 
 type ExpenseRow = { label: string; amount: string; type: "expense" | "adjustment" };
 
-export function IncomeEntryForm({
-  people,
+/** Kompaktowy edytor pojedynczego wpisu (osoba × miesiąc) — do widoku szczegółowego. */
+export function IncomeEntryEditor({
+  personId,
   month,
-  recordByPerson,
+  record,
+  onDone,
 }: {
-  people: PersonView[];
+  personId: string;
   month: string;
-  recordByPerson: Record<string, IncomeRecordView>;
+  record: IncomeRecordView | null;
+  onDone?: () => void;
 }) {
-  const [personId, setPersonId] = useState(people[0]?.id ?? "");
-  const [income, setIncome] = useState("");
-  const [vat, setVat] = useState("");
-  const [pit, setPit] = useState("");
-  const [zus, setZus] = useState("");
-  const [note, setNote] = useState("");
-  const [expenses, setExpenses] = useState<ExpenseRow[]>([
-    { label: "Biuro rachunkowe", amount: "", type: "expense" },
-  ]);
-  function load(pid: string) {
-    const r = pid ? recordByPerson[pid] : undefined;
-    setIncome(r ? String(r.income) : "");
-    setVat(r ? String(r.vat) : "");
-    setPit(r ? String(r.pit) : "");
-    setZus(r ? String(r.zus) : "");
-    setNote(r?.note ?? "");
-    setExpenses(
-      r && r.expenses.length > 0
-        ? r.expenses.map((e) => ({
-            label: e.label,
-            amount: String(e.amount),
-            type: (e.type === "adjustment" ? "adjustment" : "expense") as "expense" | "adjustment",
-          }))
-        : [{ label: "Biuro rachunkowe", amount: "", type: "expense" }]
-    );
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => load(personId), [personId]);
+  const router = useRouter();
+  const [income, setIncome] = useState(record ? String(record.income) : "");
+  const [vat, setVat] = useState(record ? String(record.vat) : "");
+  const [pit, setPit] = useState(record ? String(record.pit) : "");
+  const [zus, setZus] = useState(record ? String(record.zus) : "");
+  const [note, setNote] = useState(record?.note ?? "");
+  const [expenses, setExpenses] = useState<ExpenseRow[]>(
+    record && record.expenses.length > 0
+      ? record.expenses.map((e) => ({
+          label: e.label,
+          amount: String(e.amount),
+          type: (e.type === "adjustment" ? "adjustment" : "expense") as "expense" | "adjustment",
+        }))
+      : [{ label: "Biuro rachunkowe", amount: "", type: "expense" }]
+  );
+  const [deleting, setDeleting] = useState(false);
 
   const [state, formAction, pending] = useActionState(
     async (_prev: ActionResult<{ id: string }> | null, fd: FormData) => {
@@ -74,58 +66,47 @@ export function IncomeEntryForm({
     null
   );
 
-  if (people.length === 0) {
-    return <p className="text-sm text-slate-500">Najpierw dodaj osobę poniżej.</p>;
+  async function onDelete() {
+    if (!record) return;
+    if (!confirm("Usunąć ten wpis?")) return;
+    setDeleting(true);
+    await deleteIncomeRecord(record.id);
+    router.refresh();
+    onDone?.();
   }
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form action={formAction} className="space-y-3 rounded-lg border border-white/10 bg-black/20 p-3">
+      <input type="hidden" name="personId" value={personId} />
       <input type="hidden" name="month" value={month} />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <label className="block">
-          <span className="text-xs font-medium text-slate-400">Osoba</span>
-          <select
-            name="personId"
-            value={personId}
-            onChange={(e) => setPersonId(e.target.value)}
-            className={FIELD}
-          >
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium text-slate-400">Przychód (PLN)</span>
+          <span className="text-xs font-medium text-slate-400">Przychód</span>
           <input name="income" type="number" min="0" step="0.01" inputMode="decimal" value={income} onChange={(e) => setIncome(e.target.value)} className={FIELD} />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-slate-400">VAT (PLN)</span>
+          <span className="text-xs font-medium text-slate-400">VAT</span>
           <input name="vat" type="number" min="0" step="0.01" inputMode="decimal" value={vat} onChange={(e) => setVat(e.target.value)} className={FIELD} />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-slate-400">PIT (PLN)</span>
+          <span className="text-xs font-medium text-slate-400">PIT</span>
           <input name="pit" type="number" min="0" step="0.01" inputMode="decimal" value={pit} onChange={(e) => setPit(e.target.value)} className={FIELD} />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-slate-400">Składki ZUS (PLN)</span>
+          <span className="text-xs font-medium text-slate-400">ZUS</span>
           <input name="zus" type="number" min="0" step="0.01" inputMode="decimal" value={zus} onChange={(e) => setZus(e.target.value)} className={FIELD} />
         </label>
       </div>
 
       <div>
-        <span className="text-xs font-medium text-slate-400">Inne wydatki</span>
+        <span className="text-xs font-medium text-slate-400">Inne wydatki / wyrównania</span>
         <div className="mt-1 space-y-2">
           {expenses.map((row, i) => (
             <div key={i} className="flex gap-2">
               <input
                 name="expenseLabel"
                 value={row.label}
-                onChange={(e) =>
-                  setExpenses((prev) => prev.map((r, j) => (j === i ? { ...r, label: e.target.value } : r)))
-                }
+                onChange={(e) => setExpenses((prev) => prev.map((r, j) => (j === i ? { ...r, label: e.target.value } : r)))}
                 placeholder="np. Biuro rachunkowe"
                 className={`${FIELD} mt-0`}
               />
@@ -135,20 +116,14 @@ export function IncomeEntryForm({
                 step="0.01"
                 inputMode="decimal"
                 value={row.amount}
-                onChange={(e) =>
-                  setExpenses((prev) => prev.map((r, j) => (j === i ? { ...r, amount: e.target.value } : r)))
-                }
+                onChange={(e) => setExpenses((prev) => prev.map((r, j) => (j === i ? { ...r, amount: e.target.value } : r)))}
                 placeholder="0,00"
-                className={`${FIELD} mt-0 w-32`}
+                className={`${FIELD} mt-0 w-28`}
               />
               <select
                 name="expenseType"
                 value={row.type}
-                onChange={(e) =>
-                  setExpenses((prev) =>
-                    prev.map((r, j) => (j === i ? { ...r, type: e.target.value as "expense" | "adjustment" } : r))
-                  )
-                }
+                onChange={(e) => setExpenses((prev) => prev.map((r, j) => (j === i ? { ...r, type: e.target.value as "expense" | "adjustment" } : r)))}
                 title={row.type === "adjustment" ? "Wyrównanie: znak odwrócony (− zwiększa wydatki, + zmniejsza)" : "Zwykły wydatek"}
                 className={`${FIELD} mt-0 w-28`}
               >
@@ -173,26 +148,35 @@ export function IncomeEntryForm({
         >
           + dodaj wydatek
         </button>
-        <p className="mt-1 text-[11px] text-slate-600">
-          Wyrównanie: ujemna wartość zwiększa wydatki, dodatnia zmniejsza (korekta).
-        </p>
       </div>
 
       <label className="block">
-        <span className="text-xs font-medium text-slate-400">Notatka (opcjonalnie)</span>
+        <span className="text-xs font-medium text-slate-400">Notatka</span>
         <input name="note" value={note} onChange={(e) => setNote(e.target.value)} className={FIELD} maxLength={500} />
       </label>
 
       {state && !state.ok && <p className="text-sm text-red-400">{state.error}</p>}
-      {state?.ok && <p className="text-sm text-emerald-400">✓ Wpis zapisany.</p>}
+      {state?.ok && <p className="text-sm text-emerald-400">✓ Zapisano.</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
-      >
-        {pending ? "Zapisywanie…" : "Zapisz wpis"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50"
+        >
+          {pending ? "Zapisywanie…" : "Zapisz"}
+        </button>
+        {record && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="rounded-lg border border-red-500/30 px-4 py-2 text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+          >
+            {deleting ? "Usuwanie…" : "Usuń wpis"}
+          </button>
+        )}
+      </div>
     </form>
   );
 }

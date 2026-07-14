@@ -63,11 +63,12 @@ const RecordInput = z.object({
   personId: z.string().min(1),
   month: z.string().regex(/^\d{4}-\d{2}$/, "Miesiąc YYYY-MM"),
   income: z.coerce.number().min(0).default(0),
-  tax: z.coerce.number().min(0).default(0),
+  vat: z.coerce.number().min(0).default(0),
+  pit: z.coerce.number().min(0).default(0),
   zus: z.coerce.number().min(0).default(0),
   note: z.string().max(500).optional().nullable(),
   expenses: z
-    .array(z.object({ label: z.string().max(80), amount: z.coerce.number().min(0) }))
+    .array(z.object({ label: z.string().max(80), amount: z.coerce.number(), type: z.enum(["expense", "adjustment"]).default("expense") }))
     .default([]),
 });
 type RecordInput = z.infer<typeof RecordInput>;
@@ -80,7 +81,7 @@ export async function upsertIncomeRecord(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane" };
   }
-  const { personId, month, income, tax, zus, note, expenses } = parsed.data;
+  const { personId, month, income, vat, pit, zus, note, expenses } = parsed.data;
 
   const userId = await getCurrentUserId();
   const person = await prisma.person.findFirst({ where: { id: personId, userId } });
@@ -91,21 +92,22 @@ export async function upsertIncomeRecord(
   const record = await prisma.$transaction(async (tx) => {
     const rec = await tx.incomeRecord.upsert({
       where: { personId_month: { personId, month: monthDate } },
-      create: { userId, personId, month: monthDate, income, tax, zus, note: note ?? null },
-      update: { income, tax, zus, note: note ?? null },
+      create: { userId, personId, month: monthDate, income, vat, pit, zus, note: note ?? null },
+      update: { income, vat, pit, zus, note: note ?? null },
     });
     await tx.incomeExpense.deleteMany({ where: { recordId: rec.id } });
     if (expenses.length > 0) {
       await tx.incomeExpense.createMany({
         data: expenses
-          .filter((e) => e.label.trim() !== "" || e.amount > 0)
-          .map((e) => ({ recordId: rec.id, label: e.label.trim() || "Wydatek", amount: e.amount })),
+          .filter((e) => e.label.trim() !== "" || e.amount !== 0)
+          .map((e) => ({ recordId: rec.id, label: e.label.trim() || "Wydatek", amount: e.amount, type: e.type })),
       });
     }
     return rec;
   });
 
   revalidatePath("/income");
+  revalidatePath("/income/[personId]", "page");
   return { ok: true, data: { id: record.id } };
 }
 
@@ -113,6 +115,7 @@ export async function deleteIncomeRecord(id: string): Promise<ActionResult<{ id:
   const userId = await getCurrentUserId();
   await prisma.incomeRecord.deleteMany({ where: { id, userId } });
   revalidatePath("/income");
+  revalidatePath("/income/[personId]", "page");
   return { ok: true, data: { id } };
 }
 
@@ -121,18 +124,27 @@ export async function deleteIncomeRecord(id: string): Promise<ActionResult<{ id:
 const IncomeImportInput = z.object({
   rows: z.array(z.record(z.string(), z.string())),
   mapping: z.object({
-    person: z.string(),
+    person: z.string().optional(), // kolumna z nazwą osoby (opcjonalna)
+    personManual: z.string().optional(), // nazwa wpisana ręcznie (gdy brak kolumny / pusty wiersz)
     month: z.string(),
     income: z.string().optional(),
-    tax: z.string().optional(),
+    vat: z.string().optional(), // kolumna z podatkiem VAT
+    pit: z.string().optional(), // kolumna z podatkiem dochodowym PIT
     zus: z.string().optional(),
-    expenses: z.string().optional(),
+    expenseColumns: z
+      .array(
+        z.object({
+          column: z.string(),
+          label: z.string().max(80),
+          type: z.enum(["expense", "adjustment"]),
+        })
+      )
+      .default([]),
   }),
   dateFormat: z.string().default("YYYY-MM-DD"),
   decimalSeparator: z.enum([",", "."]).default(","),
   createMissingPeople: z.boolean().default(true),
 });
-type IncomeImportInput = z.infer<typeof IncomeImportInput>;
 
 export type IncomeImportSummary = {
   imported: number;
@@ -143,8 +155,11 @@ export type IncomeImportSummary = {
 
 /**
  * Import CSV dochodu. Każdy wiersz → rekord (osoba × miesiąc), upsert z dedup.
- * Osoby dopasowywane po nazwie (case-insensitive); brakujące tworzone (gdy createMissingPeople).
- * Wydatki (jedna kolumna) → pojedyncza linia „Inne wydatki (import)".
+ * Osoba: wartość z kolumny `person`; gdy pusta/brak kolumny → fallback do `personManual`.
+ * Brakujące osoby tworzone (gdy createMissingPeople), dopasowanie po nazwie (case-insensitive).
+ * Wydatki: każda kolumna z `expenseColumns` staje się osobną linią.
+ *   - type="expense"     → wartość zawsze dodatnia (abs).
+ *   - type="adjustment"  → wyrównanie, wartość ze znakiem (może być ujemna → korekta netto).
  */
 export async function commitIncomeImport(
   raw: unknown
@@ -160,11 +175,19 @@ export async function commitIncomeImport(
   const nameToId = new Map<string, string>();
   for (const p of existing) nameToId.set(p.name.toLowerCase().trim(), p.id);
 
-  const col = (row: Record<string, string>, key: keyof IncomeImportInput["mapping"]) =>
-    mapping[key] ? (row[mapping[key]!] ?? "").trim() : "";
+  const col = (
+    row: Record<string, string>,
+    key: "person" | "month" | "income" | "vat" | "pit" | "zus"
+  ) => (mapping[key] ? (row[mapping[key]!] ?? "").trim() : "");
 
-  // utwórz brakujące osoby
-  const names = [...new Set(rows.map((r) => col(r, "person")).filter(Boolean))];
+  const personManual = (mapping.personManual ?? "").trim();
+  const resolvePerson = (row: Record<string, string>) => {
+    const v = col(row, "person");
+    return v || personManual;
+  };
+
+  // utwórz brakujące osoby (z kolumny i wpisaną ręcznie)
+  const names = [...new Set(rows.map(resolvePerson).filter(Boolean))];
   const createdNames: string[] = [];
   for (const name of names) {
     const key = name.toLowerCase();
@@ -186,7 +209,7 @@ export async function commitIncomeImport(
   let imported = 0;
   let skipped = 0;
   for (const row of rows) {
-    const personName = col(row, "person");
+    const personName = resolvePerson(row);
     const personId = personName ? nameToId.get(personName.toLowerCase()) : undefined;
     const { iso } = parseDate(col(row, "month"), dateFormat);
     if (!personId || !iso) {
@@ -194,23 +217,35 @@ export async function commitIncomeImport(
       continue;
     }
     const monthIso = iso.slice(0, 7);
-    const num = (k: "income" | "tax" | "zus" | "expenses") =>
+    const num = (k: "income" | "vat" | "pit" | "zus") =>
       mapping[k] ? parseAmount(col(row, k), decimalSeparator, "") ?? 0 : 0;
     const income = num("income");
-    const tax = num("tax");
+    const vat = num("vat");
+    const pit = num("pit");
     const zus = num("zus");
-    const expenses = num("expenses");
+
+    // linie wydatków / wyrównań z wielu kolumn
+    const lines: { label: string; amount: number; type: "expense" | "adjustment" }[] = [];
+    for (const ec of mapping.expenseColumns) {
+      const rawVal = (row[ec.column] ?? "").trim();
+      if (!rawVal) continue;
+      const parsedAmount = parseAmount(rawVal, decimalSeparator, "");
+      if (parsedAmount == null || parsedAmount === 0) continue;
+      const label = (ec.label ?? "").trim() || ec.column;
+      const amount = ec.type === "expense" ? Math.abs(parsedAmount) : parsedAmount;
+      lines.push({ label, amount, type: ec.type });
+    }
 
     const monthDate = new Date(`${monthIso}-01T00:00:00.000Z`);
     const rec = await prisma.incomeRecord.upsert({
       where: { personId_month: { personId, month: monthDate } },
-      create: { userId, personId, month: monthDate, income, tax, zus },
-      update: { income, tax, zus },
+      create: { userId, personId, month: monthDate, income, vat, pit, zus },
+      update: { income, vat, pit, zus },
     });
     await prisma.incomeExpense.deleteMany({ where: { recordId: rec.id } });
-    if (expenses > 0) {
-      await prisma.incomeExpense.create({
-        data: { recordId: rec.id, label: "Inne wydatki (import)", amount: expenses },
+    if (lines.length > 0) {
+      await prisma.incomeExpense.createMany({
+        data: lines.map((l) => ({ recordId: rec.id, label: l.label, amount: l.amount, type: l.type })),
       });
     }
     imported++;

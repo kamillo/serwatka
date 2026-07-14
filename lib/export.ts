@@ -124,15 +124,16 @@ export async function exportIncomeCsv(): Promise<string> {
     include: { person: true, expenses: true },
   });
   return toCsv(
-    ["month", "person", "income", "tax", "zus", "expenses_total", "expenses_detail", "note"],
+    ["month", "person", "income", "vat", "pit", "zus", "expenses_total", "expenses_detail", "note"],
     rows.map((r) => {
       const expTotal = r.expenses.reduce((s, e) => s + Number(e.amount), 0);
-      const detail = r.expenses.map((e) => `${e.label}:${Number(e.amount)}`).join("; ");
+      const detail = r.expenses.map((e) => `${e.type === "adjustment" ? "[wyr]" : ""}${e.label}:${Number(e.amount)}`).join("; ");
       return [
         r.month.toISOString().slice(0, 7),
         r.person.name,
         Number(r.income),
-        Number(r.tax),
+        Number(r.vat),
+        Number(r.pit),
         Number(r.zus),
         expTotal,
         detail,

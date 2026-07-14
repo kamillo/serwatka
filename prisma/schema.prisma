@@ -188,7 +188,8 @@ model IncomeRecord {
   person    Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
   month     DateTime        // pierwszy dzień miesiąca (YYYY-MM-01)
   income    Decimal         @default(0) // przychód
-  tax       Decimal         @default(0) // podatek do zapłacenia
+  vat       Decimal         @default(0) // podatek VAT
+  pit       Decimal         @default(0) // podatek dochodowy PIT
   zus       Decimal         @default(0) // składki ZUS
   note      String?
   expenses  IncomeExpense[]
@@ -207,6 +208,7 @@ model IncomeExpense {
   record    IncomeRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
   label     String
   amount    Decimal
+  type      String       @default("expense") // "expense" | "adjustment" (wyrównanie: znak odwrócony)
 
   @@index([recordId])
   @@map("income_expenses")

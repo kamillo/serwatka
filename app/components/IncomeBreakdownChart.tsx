@@ -31,7 +31,8 @@ export function IncomeBreakdownChart({ series }: { series: MonthAggregate[] }) {
     },
     series: [
       bar("Netto", series.map((s) => Math.round(s.net)), "#06B6D4"),
-      bar("Podatek", series.map((s) => Math.round(s.tax)), "#f59e0b"),
+      bar("VAT", series.map((s) => Math.round(s.vat)), "#f59e0b"),
+      bar("PIT", series.map((s) => Math.round(s.pit)), "#fb7185"),
       bar("ZUS", series.map((s) => Math.round(s.zus)), "#8b5cf6"),
       bar("Wydatki", series.map((s) => Math.round(s.expenses)), "#94a3b8"),
     ],

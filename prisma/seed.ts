@@ -146,9 +146,9 @@ async function main() {
     personIds[p.name] = created.id;
   }
   const incomeMonths = ["2026-03", "2026-04", "2026-05", "2026-06"];
-  const personIncome: Record<string, { income: number; tax: number; zus: number }> = {
-    Kamil: { income: 18000, tax: 3600, zus: 1634 },
-    Anna: { income: 12000, tax: 2280, zus: 1634 },
+  const personIncome: Record<string, { income: number; vat: number; pit: number; zus: number }> = {
+    Kamil: { income: 18000, vat: 2400, pit: 1200, zus: 1634 },
+    Anna: { income: 12000, vat: 1500, pit: 780, zus: 1634 },
   };
   let incomeRecords = 0;
   for (const name of Object.keys(personIncome)) {
@@ -160,7 +160,8 @@ async function main() {
           personId: personIds[name],
           month: new Date(`${m}-01T00:00:00.000Z`),
           income: base.income,
-          tax: base.tax,
+          vat: base.vat,
+          pit: base.pit,
           zus: base.zus,
           note: "Demo",
         },

@@ -1,41 +1,55 @@
 // Moduł Dochód — czyste obliczenia (bez DB).
-// netto = przychód − podatek − ZUS − Σ innych wydatków.
+// netto = przychód − VAT − PIT − ZUS − Σ innych wydatków.
 
 // Paleta kolorów osób (UI). Tu, nie w pliku "use server".
 export const PERSON_COLORS = ["#10b981", "#06b6d4", "#f59e0b", "#8b5cf6", "#ec4899", "#ef4444"];
 
-export type ExpenseLine = { label: string; amount: number };
+export type ExpenseType = "expense" | "adjustment";
+export type ExpenseLine = { label: string; amount: number; type?: ExpenseType };
 
+/**
+ * Suma wydatków z uwzględnieniem typu:
+ *  - "expense"    → dodaje się do wydatków (zwiększa potrącenia).
+ *  - "adjustment" → wyrównanie ze znakiem odwróconym:
+ *      ujemne zwiększa wydatki, dodatnie zmniejsza (korekta).
+ */
 export function sumExpenses(expenses: ExpenseLine[]): number {
-  return expenses.reduce((s, e) => s + e.amount, 0);
+  return expenses.reduce((s, e) => {
+    const isAdjustment = (e.type ?? "expense") === "adjustment";
+    return s + (isAdjustment ? -e.amount : e.amount);
+  }, 0);
 }
 
 export type IncomeTotals = {
   net: number; // na rękę
-  totalDeductions: number; // podatek + ZUS + wydatki
+  totalTax: number; // VAT + PIT
+  totalDeductions: number; // VAT + PIT + ZUS + wydatki
   totalExpenses: number; // tylko „inne wydatki"
-  effectiveTaxRate: number | null; // podatek / przychód
+  effectiveTaxRate: number | null; // (VAT + PIT) / przychód
 };
 
 export type IncomeLike = {
   income: number; // przychód
-  tax: number; // podatek
+  vat: number; // podatek VAT
+  pit: number; // podatek dochodowy PIT
   zus: number; // składki ZUS
   expenses: ExpenseLine[];
 };
 
 export function computeTotals(r: IncomeLike): IncomeTotals {
   const totalExpenses = sumExpenses(r.expenses);
-  const totalDeductions = r.tax + r.zus + totalExpenses;
+  const totalTax = r.vat + r.pit;
+  const totalDeductions = totalTax + r.zus + totalExpenses;
   const net = r.income - totalDeductions;
-  const effectiveTaxRate = r.income > 0 ? r.tax / r.income : null;
-  return { net, totalDeductions, totalExpenses, effectiveTaxRate };
+  const effectiveTaxRate = r.income > 0 ? totalTax / r.income : null;
+  return { net, totalTax, totalDeductions, totalExpenses, effectiveTaxRate };
 }
 
 export type MonthAggregate = {
   month: string; // YYYY-MM
   income: number;
-  tax: number;
+  vat: number;
+  pit: number;
   zus: number;
   expenses: number;
   net: number;
@@ -50,9 +64,10 @@ export function aggregateByMonth(
     const t = computeTotals(r);
     const cur =
       map.get(r.month) ??
-      { month: r.month, income: 0, tax: 0, zus: 0, expenses: 0, net: 0 };
+      { month: r.month, income: 0, vat: 0, pit: 0, zus: 0, expenses: 0, net: 0 };
     cur.income += r.income;
-    cur.tax += r.tax;
+    cur.vat += r.vat;
+    cur.pit += r.pit;
     cur.zus += r.zus;
     cur.expenses += t.totalExpenses;
     cur.net += t.net;
