@@ -18,7 +18,7 @@ msg_ok()    { echo -e " ${GN}[OK]${CL}   $*"; }
 msg_error() { echo -e " ${RD}[ERR]${CL}  $*"; }
 header()    { echo -e "\n ${BL}━━━ $* ━━━${CL}\n"; }
 
-trap 'msg_error "Błąd na linii $LINENO."' ERR
+trap 'restore_mem; msg_error "Błąd na linii $LINENO."' ERR
 
 # ─── Serwis systemd (wspólny dla install i update) ──────────────────
 setup_service() {
@@ -45,6 +45,32 @@ SVCEOF"
   pct exec "$CT_ID" -- bash -lc "systemctl daemon-reload && systemctl enable serwatka && systemctl restart serwatka"
 }
 
+# ─── Build z tymczasowym podbiciem RAM (OOM killer) ──────────────────
+# next build (Turbopack) na 1 GB CT bywa ubijany przez OOM ("Killed").
+# Na czas builda podbijamy memory/swap kontenera (live, cgroup) i przywracamy po.
+bump_mem() {
+  CT_RAM_ORIG=$(pct config "$CT_ID" | awk '/^memory:/{print $2}')
+  CT_SWAP_ORIG=$(pct config "$CT_ID" | awk '/^swap:/{print $2}')
+  if [[ "${CT_RAM_ORIG:-0}" != "$BUILD_RAM" || "${CT_SWAP_ORIG:-0}" != "$BUILD_SWAP" ]]; then
+    msg_info "Podbijanie pamięci na czas builda: RAM ${CT_RAM_ORIG:-0}→${BUILD_RAM}, swap ${CT_SWAP_ORIG:-0}→${BUILD_SWAP}"
+    pct set "$CT_ID" --memory "$BUILD_RAM" --swap "$BUILD_SWAP"
+  fi
+}
+
+restore_mem() {
+  if [[ -n "${CT_RAM_ORIG:-}" ]]; then
+    msg_info "Przywracanie pamięci: RAM=${CT_RAM_ORIG}, swap=${CT_SWAP_ORIG}"
+    pct set "$CT_ID" --memory "$CT_RAM_ORIG" --swap "$CT_SWAP_ORIG" || true
+    CT_RAM_ORIG=""
+  fi
+}
+
+build_next() {
+  bump_mem
+  pct exec "$CT_ID" -- bash -lc "cd ${APP_DIR} && npm run build"
+  restore_mem
+}
+
 # ─── Konfiguracja ────────────────────────────────────────────────────
 CT_ID="${CT_ID:-300}"
 CT_NAME="${CT_NAME:-serwatka}"
@@ -60,6 +86,8 @@ NET_MODE="${NET_MODE:-dhcp}"
 CT_IP="${CT_IP:-192.168.1.200/24}"
 CT_GW="${CT_GW:-192.168.1.1}"
 GIT_REPO="${GIT_REPO:-https://github.com/kamillo/serwatka.git}"
+BUILD_RAM="${BUILD_RAM:-2048}"   # tymczasowe podbicie RAM na czas next build
+BUILD_SWAP="${BUILD_SWAP:-1024}" # (OOM killer przy domyślnych 1024 MB)
 
 # ─── Sprawdzenia wstępne ─────────────────────────────────────────────
 if [[ $EUID -ne 0 ]]; then
@@ -220,7 +248,7 @@ if [[ "$MODE" == "install" ]]; then
   msg_ok "Klient Prisma gotowy"
 
   msg_info "Budowanie Next.js (next build)"
-  pct exec "$CT_ID" -- bash -lc "cd ${APP_DIR} && npm run build"
+  build_next
   msg_ok "Build ukończony"
 
   # ── Baza danych ───────────────────────────────────────────────────
@@ -276,7 +304,7 @@ if [[ "$MODE" == "update" ]]; then
   msg_ok "Klient Prisma zregenerowany"
 
   msg_info "Budowanie Next.js"
-  pct exec "$CT_ID" -- bash -lc "cd ${APP_DIR} && npm run build"
+  build_next
   msg_ok "Build ukończony"
 
   # ── Migracje ──────────────────────────────────────────────────────
