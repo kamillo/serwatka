@@ -67,6 +67,9 @@ restore_mem() {
 
 build_next() {
   bump_mem
+  # Sprzątanie martwego cache z buildów 16.3 (turbopackFileSystemCacheForBuild=off
+  # → cache nie jest już czytany, tylko zajmuje miejsce na 8GB dysku).
+  pct exec "$CT_ID" -- bash -lc "rm -rf ${APP_DIR}/.next/cache/turbopack"
   pct exec "$CT_ID" -- bash -lc "cd ${APP_DIR} && npm run build"
   restore_mem
 }
