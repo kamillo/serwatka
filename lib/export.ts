@@ -1,6 +1,7 @@
 // Eksport danych użytkownika (przenośność + backup).
 import { prisma } from "./prisma";
 import { getCurrentUserId } from "./auth";
+import { sumExpenses, type ExpenseLine } from "./income";
 
 function csvEscape(v: unknown): string {
   const s = v == null ? "" : String(v);
@@ -116,6 +117,63 @@ export async function exportTransactionsCsv(): Promise<string> {
   );
 }
 
+export type IncomeCsvRecord = {
+  month: string; // YYYY-MM
+  person: string;
+  income: number;
+  vat: number;
+  pit: number;
+  zus: number;
+  note: string;
+  expenses: ExpenseLine[];
+};
+
+/** Buduje CSV dochodu: każdy unikalny (typ, etykieta) wydatku/wyrównania to osobna kolumna. */
+export function buildIncomeCsv(records: IncomeCsvRecord[]): string {
+  const header = (type: string, label: string) => `${type}:${label}`;
+
+  const columns: { type: string; label: string; header: string }[] = [];
+  const seen = new Set<string>();
+  for (const r of records) {
+    for (const e of r.expenses) {
+      const type = e.type ?? "expense";
+      const key = `${type}|${e.label}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      columns.push({ type, label: e.label, header: header(type, e.label) });
+    }
+  }
+  columns.sort((a, b) =>
+    a.type === b.type ? a.label.localeCompare(b.label) : a.type === "expense" ? -1 : 1
+  );
+
+  const headers = ["month", "person", "income", "vat", "pit", "zus", "expenses_total", ...columns.map((c) => c.header), "note"];
+
+  const rows = records.map((r) => {
+    const total = sumExpenses(r.expenses);
+    const cell = (c: { type: string; label: string }) => {
+      const matches = r.expenses.filter(
+        (e) => (e.type ?? "expense") === c.type && e.label === c.label
+      );
+      if (matches.length === 0) return "";
+      return matches.reduce((s, e) => s + e.amount, 0);
+    };
+    return [
+      r.month,
+      r.person,
+      r.income,
+      r.vat,
+      r.pit,
+      r.zus,
+      total,
+      ...columns.map(cell),
+      r.note,
+    ];
+  });
+
+  return toCsv(headers, rows);
+}
+
 export async function exportIncomeCsv(): Promise<string> {
   const userId = await getCurrentUserId();
   const rows = await prisma.incomeRecord.findMany({
@@ -123,22 +181,20 @@ export async function exportIncomeCsv(): Promise<string> {
     orderBy: [{ month: "asc" }, { personId: "asc" }],
     include: { person: true, expenses: true },
   });
-  return toCsv(
-    ["month", "person", "income", "vat", "pit", "zus", "expenses_total", "expenses_detail", "note"],
-    rows.map((r) => {
-      const expTotal = r.expenses.reduce((s, e) => s + Number(e.amount), 0);
-      const detail = r.expenses.map((e) => `${e.type === "adjustment" ? "[wyr]" : ""}${e.label}:${Number(e.amount)}`).join("; ");
-      return [
-        r.month.toISOString().slice(0, 7),
-        r.person.name,
-        Number(r.income),
-        Number(r.vat),
-        Number(r.pit),
-        Number(r.zus),
-        expTotal,
-        detail,
-        r.note ?? "",
-      ];
-    })
+  return buildIncomeCsv(
+    rows.map((r) => ({
+      month: r.month.toISOString().slice(0, 7),
+      person: r.person.name,
+      income: Number(r.income),
+      vat: Number(r.vat),
+      pit: Number(r.pit),
+      zus: Number(r.zus),
+      note: r.note ?? "",
+      expenses: r.expenses.map((e) => ({
+        label: e.label,
+        amount: Number(e.amount),
+        type: e.type === "adjustment" ? ("adjustment" as const) : ("expense" as const),
+      })),
+    }))
   );
 }
