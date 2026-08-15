@@ -62,14 +62,30 @@ describe("computeNetWorthSeries", () => {
     expect(series[0].byCategory).toEqual({ cash: 100 });
   });
 
-  it("stepDays próbuje co N dni", () => {
+  it("stepDays próbuje co N dni, ale ostatni punkt = end (nie pomija końca zakresu)", () => {
     const series = computeNetWorthSeries(singleAsset, {
       start: D("2026-01-01"),
       end: D("2026-01-15"),
     }, 3);
     expect(series.map((p) => p.date)).toEqual([
-      "2026-01-01", "2026-01-04", "2026-01-07", "2026-01-10", "2026-01-13",
+      "2026-01-01", "2026-01-04", "2026-01-07", "2026-01-10", "2026-01-13", "2026-01-15",
     ]);
+  });
+
+  it("wycena z końca zakresu jest widoczna przy kroku > 1 dni", () => {
+    const withToday: ValuationPoint[] = [
+      ...singleAsset,
+      { assetId: "a1", categorySlug: "cash", valuePln: 200, date: D("2026-01-15") },
+    ];
+    const series = computeNetWorthSeries(withToday, {
+      start: D("2026-01-01"),
+      end: D("2026-01-15"),
+    }, 3);
+    expect(series[series.length - 1]).toEqual({
+      date: "2026-01-15",
+      total: 200,
+      byCategory: { cash: 200 },
+    });
   });
 });
 

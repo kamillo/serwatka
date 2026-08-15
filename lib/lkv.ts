@@ -82,11 +82,9 @@ export function computeNetWorthSeries(
   const pointers = new Array<number>(assets.length).fill(-1);
   const points: SeriesPoint[] = [];
 
-  for (
-    let d = startOfDayUTC(start);
-    d <= startOfDayUTC(end);
-    d = addDays(d, stepDays)
-  ) {
+  // Punkt szeregu dla danego dnia (LKV forward-fill). Mutuje `pointers` —
+  // zakładamy wywołania w kolejności rosnących dat.
+  const pointAt = (d: Date): SeriesPoint => {
     const byCategory: Record<string, number> = {};
     let total = 0;
 
@@ -102,8 +100,20 @@ export function computeNetWorthSeries(
         byCategory[cat] = (byCategory[cat] ?? 0) + v.valuePln;
       }
     }
-    points.push({ date: toDayKey(d), total, byCategory });
+    return { date: toDayKey(d), total, byCategory };
+  };
+
+  const endDay = startOfDayUTC(end);
+  for (
+    let d = startOfDayUTC(start);
+    d < endDay;
+    d = addDays(d, stepDays)
+  ) {
+    points.push(pointAt(d));
   }
+  // Zawsze kończymy dokładnie na `end` (dziś) — inaczej przy kroku > 1 dni
+  // ostatni punkt wypadał przed końcem zakresu i pomijał wyceny z dnia dzisiejszego.
+  points.push(pointAt(endDay));
   return points;
 }
 

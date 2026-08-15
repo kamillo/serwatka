@@ -7,7 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # serwatka — wiedza o projekcie
 
 ## Co to jest
-Osobisty tracker finansowy: **wartość netto** (aktywa / wyceny / transakcje + FX + inflacja) oraz moduł **Dochód** (przychód / podatek / ZUS / wydatki per osoba, miesięcznie).
+Osobisty tracker finansowy: **wartość netto** (aktywa / wyceny / transakcje + FX + inflacja) oraz moduł **Dochód** (przychód / VAT / PIT / ZUS / wydatki per osoba, miesięcznie).
 Plany: `PLAN_IMPLEMENTACJI.md` (net worth) + `PLAN_DOCHOD.md` (dochód). Status faz jest tam w checklistach.
 
 ## Stack
@@ -23,7 +23,7 @@ Next.js 16 (App Router, TS) · React 19 · Tailwind v4 · Prisma 6 + SQLite (dev
 
 ## Model danych (Prisma)
 - **Net worth**: `Asset` → `Valuation` (snapshot, szereg czasowy; `valuePln` precomputowane z `convertToPln`) + `Transaction` (historia zakupów, FIFO). Plus `Category`, `ImportJob`.
-- **Dochód**: `Person` → `IncomeRecord` (1 / osoba × miesiąc: `income`/`tax`/`zus`; `@@unique([personId, month])`) → `IncomeExpense` (linie „innych wydatków").
+- **Dochód**: `Person` → `IncomeRecord` (1 / osoba × miesiąc: `income`/`vat`/`pit`/`zus`; `@@unique([personId, month])`) → `IncomeExpense` (linie „innych wydatków"). netto = przychód − VAT − PIT − ZUS − Σ wydatków.
 - **Makro**: `FxRate` (NBP tabela A), `MacroInflation` (Eurostat HICP: `cpiMonthlyIndex` m/m + `cumulativeIndex`).
 - Wszystko scope'owane po `userId`.
 
