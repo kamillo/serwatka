@@ -10,6 +10,7 @@ import {
   getIncomeSeriesByPerson,
   getIncomeYearly,
   getPeople,
+  getPreviousIncomeRecordByPerson,
   INCOME_RANGE_PRESETS,
   type IncomeRangePreset,
   type IncomeRecordView,
@@ -39,9 +40,10 @@ export default async function IncomePage({
       ? sp.avgRange
       : "1Y";
   const qs = (m: string) => `?month=${m}${avgRange !== "1Y" ? `&avgRange=${avgRange}` : ""}`;
-  const [people, recordByPerson, series, seriesByPerson, yearly, averages] = await Promise.all([
+  const [people, recordByPerson, prevRecordByPerson, series, seriesByPerson, yearly, averages] = await Promise.all([
     getPeople(),
     getIncomeRecordByPerson(month),
+    getPreviousIncomeRecordByPerson(month),
     getIncomeSeries(),
     getIncomeSeriesByPerson(),
     getIncomeYearly(year),
@@ -324,7 +326,13 @@ export default async function IncomePage({
           <h2 className="mb-3 text-sm font-semibold text-slate-300">
             Wpis — {formatMonthPL(month)}
           </h2>
-          <IncomeEntryForm key={month} people={people} month={month} recordByPerson={recordByPerson} />
+          <IncomeEntryForm
+            key={month}
+            people={people}
+            month={month}
+            recordByPerson={recordByPerson}
+            prevRecordByPerson={prevRecordByPerson}
+          />
         </section>
         <section className={`lg:col-span-2 ${CARD}`}>
           <h2 className="mb-3 text-sm font-semibold text-slate-300">Osoby</h2>

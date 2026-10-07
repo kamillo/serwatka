@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { upsertIncomeRecord } from "@/lib/actions/income";
 import type { ActionResult } from "@/lib/actions/assets";
 import type { IncomeRecordView, PersonView } from "@/lib/data";
+import { formatMonthPL } from "@/lib/format";
 
 const FIELD =
   "mt-1 w-full rounded-lg border border-white/10 bg-white/[0.03] h-9 px-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30";
@@ -14,10 +15,13 @@ export function IncomeEntryForm({
   people,
   month,
   recordByPerson,
+  prevRecordByPerson = {},
 }: {
   people: PersonView[];
   month: string;
   recordByPerson: Record<string, IncomeRecordView>;
+  /** Najnowszy wcześniejszy wpis per osoba — szablon, gdy w tym miesiącu brak wpisu. */
+  prevRecordByPerson?: Record<string, IncomeRecordView>;
 }) {
   const [personId, setPersonId] = useState(people[0]?.id ?? "");
   const [income, setIncome] = useState("");
@@ -28,13 +32,17 @@ export function IncomeEntryForm({
   const [expenses, setExpenses] = useState<ExpenseRow[]>([
     { label: "Biuro rachunkowe", amount: "", type: "expense" },
   ]);
+  const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null);
   function load(pid: string) {
-    const r = pid ? recordByPerson[pid] : undefined;
+    const own = pid ? recordByPerson[pid] : undefined;
+    const prev = !own && pid ? prevRecordByPerson[pid] : undefined;
+    const r = own ?? prev;
+    setPrefilledFrom(prev ? prev.month : null);
     setIncome(r ? String(r.income) : "");
     setVat(r ? String(r.vat) : "");
     setPit(r ? String(r.pit) : "");
     setZus(r ? String(r.zus) : "");
-    setNote(r?.note ?? "");
+    setNote(own?.note ?? "");
     setExpenses(
       r && r.expenses.length > 0
         ? r.expenses.map((e) => ({
@@ -114,6 +122,12 @@ export function IncomeEntryForm({
           <input name="zus" type="number" min="0" step="0.01" inputMode="decimal" value={zus} onChange={(e) => setZus(e.target.value)} className={FIELD} />
         </label>
       </div>
+
+      {prefilledFrom && !state?.ok && (
+        <p className="text-xs text-amber-300/80">
+          Brak wpisu w tym miesiącu — pola uzupełnione na podstawie: {formatMonthPL(prefilledFrom)}. Sprawdź kwoty przed zapisem.
+        </p>
+      )}
 
       <div>
         <span className="text-xs font-medium text-slate-400">Inne wydatki</span>

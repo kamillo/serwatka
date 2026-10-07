@@ -290,6 +290,22 @@ export async function getIncomeRecordByPerson(
   return map;
 }
 
+/** Mapa personId → najnowszy rekord sprzed danego miesiąca (szablon dla nowego wpisu). */
+export async function getPreviousIncomeRecordByPerson(
+  month: string
+): Promise<Record<string, IncomeRecordView>> {
+  const userId = await getCurrentUserId();
+  const monthDate = new Date(`${month}-01T00:00:00.000Z`);
+  const rows = await prisma.incomeRecord.findMany({
+    where: { userId, month: { lt: monthDate } },
+    include: { expenses: true },
+    orderBy: { month: "desc" },
+  });
+  const map: Record<string, IncomeRecordView> = {};
+  for (const r of rows) if (!map[r.personId]) map[r.personId] = incomeRecordToView(r);
+  return map;
+}
+
 /** Serie miesięczne dochodu (suma po osobach), chronologicznie. */
 export async function getIncomeSeries(): Promise<MonthAggregate[]> {
   const userId = await getCurrentUserId();
