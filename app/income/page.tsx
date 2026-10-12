@@ -27,7 +27,7 @@ const CARD =
 export default async function IncomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; avgRange?: string }>;
+  searchParams: Promise<{ month?: string; avgRange?: string; charts?: string }>;
 }) {
   const sp = await searchParams;
   const month = /^\d{4}-\d{2}$/.test(sp.month ?? "") ? sp.month! : currentMonth();
@@ -39,7 +39,9 @@ export default async function IncomePage({
     sp.avgRange === "3M" || sp.avgRange === "6M" || sp.avgRange === "YTD" || sp.avgRange === "1Y" || sp.avgRange === "MAX"
       ? sp.avgRange
       : "1Y";
-  const qs = (m: string) => `?month=${m}${avgRange !== "1Y" ? `&avgRange=${avgRange}` : ""}`;
+  const chartsAll = sp.charts === "all";
+  const qs = (m: string, all = chartsAll) =>
+    `?month=${m}${avgRange !== "1Y" ? `&avgRange=${avgRange}` : ""}${all ? "&charts=all" : ""}`;
   const [people, recordByPerson, prevRecordByPerson, series, seriesByPerson, yearly, averages] = await Promise.all([
     getPeople(),
     getIncomeRecordByPerson(month),
@@ -49,6 +51,22 @@ export default async function IncomePage({
     getIncomeYearly(year),
     getIncomeAverages(avgRange),
   ]);
+
+  // Wykresy domyślnie do ostatniego miesiąca z przychodem — późniejsze wpisy
+  // (np. zaplanowany sam ZUS) wydłużałyby oś do końca roku.
+  const lastIncomeMonth = series.findLast((s) => s.income > 0)?.month;
+  const hasTrailing = lastIncomeMonth != null && series.at(-1)!.month > lastIncomeMonth;
+  const trimCharts = hasTrailing && !chartsAll;
+  const chartSeries = trimCharts ? series.filter((s) => s.month <= lastIncomeMonth!) : series;
+  const chartByPerson = trimCharts
+    ? (() => {
+        const n = seriesByPerson.months.filter((m) => m <= lastIncomeMonth!).length;
+        return {
+          months: seriesByPerson.months.slice(0, n),
+          persons: seriesByPerson.persons.map((p) => ({ ...p, net: p.net.slice(0, n) })),
+        };
+      })()
+    : seriesByPerson;
 
   // sumy dla miesiąca
   let sumIncome = 0,
@@ -166,8 +184,15 @@ export default async function IncomePage({
 
       {/* Wykres liniowy */}
       <section className={`mb-4 ${CARD}`}>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">Dochód netto w czasie (per osoba)</h2>
-        <IncomeChart months={seriesByPerson.months} persons={seriesByPerson.persons} />
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-300">Dochód netto w czasie (per osoba)</h2>
+          {hasTrailing && (
+            <Link href={qs(month, !chartsAll)} scroll={false} className="text-xs text-emerald-400 hover:text-emerald-300">
+              {chartsAll ? "Do ostatniego przychodu" : "Pokaż wszystkie wpisy"}
+            </Link>
+          )}
+        </div>
+        <IncomeChart months={chartByPerson.months} persons={chartByPerson.persons} />
       </section>
 
       {/* Rozkład przychodu (stacked bar) */}
@@ -175,7 +200,7 @@ export default async function IncomePage({
         <h2 className="mb-2 text-sm font-semibold text-slate-300">
           Rozkład przychodu (Netto + potrącenia = przychód)
         </h2>
-        <IncomeBreakdownChart series={series} />
+        <IncomeBreakdownChart series={chartSeries} />
       </section>
 
       {/* Średni dochód netto (zakres) */}
@@ -186,7 +211,7 @@ export default async function IncomePage({
             {INCOME_RANGE_PRESETS.map((p) => (
               <Link
                 key={p.value}
-                href={`?month=${month}&avgRange=${p.value}`}
+                href={`?month=${month}&avgRange=${p.value}${chartsAll ? "&charts=all" : ""}`}
                 className={`rounded-md px-3 py-1 text-sm transition ${
                   p.value === avgRange ? "bg-white/10 font-medium text-slate-50" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
                 }`}

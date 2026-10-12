@@ -478,7 +478,19 @@ export async function getIncomeAverages(
   refMonth?: string
 ): Promise<IncomeAverages> {
   const userId = await getCurrentUserId();
-  const { from, to } = resolveMonthRange(preset, refMonth);
+  // Domyślnie zakres kończy się na ostatnim miesiącu z przychodem — późniejsze
+  // wpisy (np. zaplanowany sam ZUS) zaniżałyby średnią.
+  if (!refMonth) {
+    const last = await prisma.incomeRecord.findFirst({
+      where: { userId, income: { gt: 0 } },
+      orderBy: { month: "desc" },
+      select: { month: true },
+    });
+    refMonth = last?.month.toISOString().slice(0, 7);
+  }
+  const range = resolveMonthRange(preset, refMonth);
+  const from = range.from;
+  const to = preset === "MAX" && refMonth ? refMonth : range.to;
   const records = await prisma.incomeRecord.findMany({
     where: {
       userId,
