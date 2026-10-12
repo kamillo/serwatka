@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import Link from "next/link";
+import { AssetNameEditor } from "./AssetNameEditor";
 import { deleteAsset, toggleAssetActive } from "@/lib/actions/assets";
 import type { AssetSnapshot } from "@/lib/data";
 import { formatDate, formatPercent, formatPLN } from "@/lib/format";
@@ -26,7 +26,7 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
             <th className="py-2 pr-3 font-medium">Kategoria</th>
             <th className="py-2 pr-3 text-right font-medium">Wartość</th>
             <th className="py-2 pr-3 text-right font-medium">Δ</th>
-            <th className="py-2 pr-3 font-medium">Ostatnia wycena</th>
+            <th className="whitespace-nowrap py-2 pr-3 font-medium">Ostatnia wycena</th>
             <th className="py-2 text-right font-medium">Akcje</th>
           </tr>
         </thead>
@@ -49,12 +49,10 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
                   a.isActive ? "" : "opacity-50"
                 }`}
               >
-                <td className="py-2 pr-3 font-medium text-slate-300">
-                  <Link href={`/assets/${a.id}`} className="text-slate-100 hover:underline">
-                    {a.name}
-                  </Link>
+                <td className="w-full min-w-48 py-2 pr-3 font-medium text-slate-300">
+                  <AssetNameEditor key={a.name} id={a.id} name={a.name} href={`/assets/${a.id}`} fill />
                 </td>
-                <td className="py-2 pr-3">
+                <td className="whitespace-nowrap py-2 pr-3">
                   <span
                     className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs text-white"
                     style={{ backgroundColor: a.colorHex }}
@@ -62,16 +60,16 @@ export function AssetTable({ assets }: { assets: AssetSnapshot[] }) {
                     {a.categoryName}
                   </span>
                 </td>
-                <td className="py-2 pr-3 text-right tabular-nums text-slate-300">
+                <td className="whitespace-nowrap py-2 pr-3 text-right tabular-nums text-slate-300">
                   {formatPLN(a.latestValue)}
                 </td>
-                <td className={`py-2 pr-3 text-right tabular-nums ${deltaClass}`}>
+                <td className={`whitespace-nowrap py-2 pr-3 text-right tabular-nums ${deltaClass}`}>
                   {delta == null ? "—" : formatPercent(delta)}
                 </td>
-                <td className="py-2 pr-3 text-slate-500">
+                <td className="whitespace-nowrap py-2 pr-3 text-slate-500">
                   {a.latestDate ? formatDate(a.latestDate) : "—"}
                 </td>
-                <td className="py-2 text-right">
+                <td className="whitespace-nowrap py-2 text-right">
                   <button
                     disabled={pending}
                     onClick={() =>

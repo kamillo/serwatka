@@ -71,3 +71,18 @@ export async function toggleAssetActive(
   revalidatePath("/");
   return { ok: true, data: { id } };
 }
+
+export async function renameAsset(
+  id: string,
+  name: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = AssetInput.shape.name.safeParse(name);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowa nazwa" };
+  }
+  const userId = await getCurrentUserId();
+  await prisma.asset.update({ where: { id, userId }, data: { name: parsed.data } });
+  revalidatePath("/");
+  revalidatePath(`/assets/${id}`);
+  return { ok: true, data: { id } };
+}

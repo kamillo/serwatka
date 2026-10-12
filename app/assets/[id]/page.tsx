@@ -6,6 +6,7 @@ import { computeFifoPerf } from "@/lib/cost-basis";
 import { cumulativeForDate } from "@/lib/inflation";
 import { formatPLN, formatPercent, todayISO } from "@/lib/format";
 import { AddTransactionForm } from "@/app/components/AddTransactionForm";
+import { AssetNameEditor } from "@/app/components/AssetNameEditor";
 import { AssetValuationChart } from "@/app/components/AssetValuationChart";
 import { TransactionTable } from "@/app/components/TransactionTable";
 
@@ -45,7 +46,7 @@ export default async function AssetPage({
             ← Dashboard
           </Link>
           <h1 className="mt-2 flex items-center gap-2 text-lg font-bold tracking-tight text-slate-100">
-            {detail.name}
+            <AssetNameEditor key={detail.name} id={detail.id} name={detail.name} />
             <span
               className="rounded-full px-2 py-0.5 text-xs text-white"
               style={{ backgroundColor: detail.colorHex }}
